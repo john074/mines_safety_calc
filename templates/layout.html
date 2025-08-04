@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+{% load static%}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}ПРОМЭКС{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">ПРОМЭКС</div>
+            <div class="tagline">Калькулятор для анализа<br>опасностей и оценки риска аварий на угольных шахтах</div>
+        </div>
+        <nav class="main-nav">
+            <div class="container">
+                {% if user.is_authenticated %}
+                    <ul>
+                        <li><a href="">Рассчеты</a></li>
+                        <li><a href="">Предприятия</a></li>
+                        <li><form class="logout" action="{% url 'users:logout' %}" method="post">
+                            {% csrf_token %}
+                            <button class="">Выход</button>
+                        </form></li>
+                    </ul>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <main class="content container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>© «Промэкс», 2025</p>
+        </div>
+    </footer>
+</body>
+</html>

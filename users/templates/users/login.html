@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Login page
+{% endblock %}
+
+{% block content %}
+  <div class="header"><h1>Авторизация</h1></div>
+  <form action="/users/login/" method="post" class="login-form">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit" class="btn-submit">Войти</button>
+  </form>  
+{% endblock%}
+
+
