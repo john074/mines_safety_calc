@@ -151,3 +151,193 @@ main {
 .btn-submit:hover {
     background-color: #555;
 }
+
+.company-form {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.company-form h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-group input[type="text"]:focus {
+    border-color: #0066cc;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,102,204,0.1);
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: #333;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #555;
+}
+
+.btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background-color: #e0e0e0;
+}
+
+.messages {
+    list-style: none;
+    padding: 10px;
+    color: red;
+    font-weight: bold;
+}
+
+.calc-log {
+    margin-top: 30px;
+    overflow-x: auto;
+}
+
+.calc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+.calc-table th, .calc-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+}
+
+.calc-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
+
+.calc-table tr:hover {
+    background-color: #fafafa;
+}
+
+.status {
+    font-weight: bold;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.status.complete {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status.in-progress {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.calc-table td:last-child,
+.calc-table th:last-child {
+    min-width: 150px;
+    white-space: nowrap;
+}
+
+.search-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-form select,
+.search-form input[type="text"] {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+}
+
+.search-form button {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.search-form button:hover {
+    background-color: #555;
+}
+
+.calc-table th a {
+    text-decoration: none;
+    color: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+    padding: 8px;
+}
+
+.calc-table th a:hover {
+    text-decoration: underline;
+}
+
+.calc-table td:last-child,
+.calc-table th:last-child {
+    min-width: 150px;
+    white-space: nowrap;
+}
+
+.search-form label {
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.clickable-row:hover {
+    background-color: #f5f5f5;
+}

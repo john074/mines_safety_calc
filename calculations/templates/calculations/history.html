@@ -1,0 +1,78 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Журнал рассчетов
+{% endblock %}
+
+{% block content %}
+<h1 class="header">Журнал расчётов</h1>
+
+<form method="get" class="search-form">
+  <select name="filter_by">
+    <option value="organisation_INN" {% if request.GET.filter_by == "organisation_INN" %}selected{% endif %}>ИНН</option>
+    <option value="organisation_name" {% if request.GET.filter_by == "organisation_name" %}selected{% endif %}>Наименование</option>
+    <option value="user" {% if request.GET.filter_by == "user" %}selected{% endif %}>Пользователь</option>
+  </select>
+
+  <input type="text" name="query" placeholder="Поиск..." value="{{ request.GET.query }}">
+
+  <label>Создан с:
+    <input type="date" name="created_from" value="{{ request.GET.created_from }}">
+  </label>
+  <label>по:
+    <input type="date" name="created_to" value="{{ request.GET.created_to }}">
+  </label>
+
+  <button type="submit">Поиск</button>
+</form>
+
+<div class="calc-log">
+  <table class="calc-table">
+    <thead>
+      <tr>
+        {% for field, label in headers.items %}
+        <th>
+            <a href="?sort={% if current_sort == field %}-{{ field }}{% else %}{{ field }}{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                {{ label }}
+                {% if current_sort == field %}
+                    ▲
+                {% elif current_sort == '-'|add:field %}
+                    ▼
+                {% endif %}
+            </a>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+        {% for entry in calculations %}
+            <tr class="clickable-row" data-href="{% url 'calculations:calc_details' entry.id %}">
+                <td>
+                    {% if entry.user.first_name or entry.user.last_name %}
+                    {{ entry.user.first_name }} {{ entry.user.last_name }}
+                    {% else %}
+                    {{ entry.user.username }}
+                    {% endif %}
+                </td>
+                <td>{{ entry.created|date:"d.m.Y H:i" }}</td>
+                <td>{{ entry.organisation_INN }}</td>
+                <td>{{ entry.organisation_name }}</td>
+                <td>
+                    {% if entry.is_complete %}
+                    <span class="status complete">Завершён</span>
+                    {% else %}
+                    <span class="status in-progress">Не завершён</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">Нет доступных расчётов</td></tr>
+        {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+
+
+

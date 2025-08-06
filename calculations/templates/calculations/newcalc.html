@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Новый рассчет
+{% endblock %}
+
+{% block content %}
+    <h1 class="header">Данные об объекте</h1>
+
+    {% if messages %}
+        <ul class="messages header">
+            {% for message in messages %}
+                <li class="message">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+
+    <form method="post" action="{% url 'calculations:company' %}" class="company-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="inn">ИНН</label>
+            <input type="text" id="inn" name="inn" value="{{ data.inn|default_if_none:''}}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="name">Наименование</label>
+            <input type="text" id="name" name="name" value="{{ data.name|default_if_none:''}}">
+        </div>
+
+        <div class="form-group">
+            <label for="kpp">КПП</label>
+            <input type="text" id="kpp" name="kpp" value="{{ data.kpp|default_if_none:''}}">
+        </div>
+
+        <div class="form-group">
+            <label for="ogrn">ОГРН</label>
+            <input type="text" id="ogrn" name="ogrn" value="{{ data.ogrn|default_if_none:''}}">
+        </div>
+
+        <div class="form-group">
+            <label for="address">Юр. Адрес</label>
+            <input type="text" id="address" name="address" value="{{ data.address|default_if_none:''}}">
+        </div>
+
+        <div class="button-group">
+            <button type="submit" name="action" value="fetch" class="btn-secondary">Получить данные по ИНН с сайта nalog.ru</button>
+            <button type="submit" name="action" value="calculate" class="btn-primary">Начать рассчет</button>
+        </div>
+    </form>
+{% endblock %}

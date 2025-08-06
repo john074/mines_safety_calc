@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>{% block title %}ПРОМЭКС{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="{% static 'js/script.js' %}"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
@@ -17,8 +18,8 @@
             <div class="container">
                 {% if user.is_authenticated %}
                     <ul>
-                        <li><a href="">Рассчеты</a></li>
-                        <li><a href="">Предприятия</a></li>
+                        <li><a href="{% url 'calculations:history' %}">Журнал рассчетов</a></li>
+                        <li><a href="{% url 'calculations:newcalc' %}">Новый рассчет</a></li>
                         <li><form class="logout" action="{% url 'users:logout' %}" method="post">
                             {% csrf_token %}
                             <button class="">Выход</button>
