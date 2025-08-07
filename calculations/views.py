@@ -11,6 +11,7 @@ from datetime import datetime
 def newcalc_view(requset):
     return render(requset, "calculations/newcalc.html")
 
+
 @login_required(login_url="/users/login/")
 def company_view(request):
     if request.method == 'POST':
