@@ -2,9 +2,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .helpers.get_data_by_inn import get_data
-from .models import Calculation
-from django.db.models import Q
+from .models import Calculation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData
+from django.db.models import Q, Prefetch
+from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from datetime import datetime
+import json
 
 # Create your views here.
 @login_required(login_url="/users/login/")
@@ -59,14 +63,83 @@ def company_view(request):
             )
             new_calculation.save()
             
-            return redirect('calculations:r0')
+            return redirect('calculations:rX', calc_id=new_calculation.id, group_code='r0')
 
     return render(request, 'calculations/newcalc.html')
 
 
+PARAMETER_CODES = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8']
+
 @login_required(login_url="/users/login/")
-def r0_view(request):
-    return render(request, "calculations/r0.html")
+def rX_view(request, calc_id, group_code):
+    calculation = get_object_or_404(Calculation, id=calc_id)
+    if (calculation.is_complete):
+        return redirect('calculations:history')
+    group = get_object_or_404(ParameterGroup, code=group_code)
+
+    if group_code == 'r0':
+        all_parameters = Parameter.objects.all()
+        for p in all_parameters:
+            CalculationParameterData.objects.get_or_create(
+                calculation=calculation,
+                parameter=p,
+                defaults={
+                    "value_before": "",
+                    "value_after": "",
+                    "actions_description": ""
+                }
+            )
+
+    parameters = Parameter.objects.filter(group=group).order_by('order_num')
+
+    param_data_dict = {
+        pd.parameter_id: pd
+        for pd in CalculationParameterData.objects.filter(
+            calculation=calculation,
+            parameter__in=parameters
+        )
+    }
+
+    for p in parameters:
+        p.data = param_data_dict.get(p.id)
+    
+    next_code = None
+    current_index = PARAMETER_CODES.index(group_code)
+    prev_code = PARAMETER_CODES[current_index - 1] if current_index > 0 else None
+
+    if request.method == "POST":
+        for param in parameters:
+            value_before = request.POST.get(f"before_{param.id}", "")
+            value_after = request.POST.get(f"after_{param.id}", "")
+            actions_description = request.POST.get(f"actions_{param.id}", "")
+
+            CalculationParameterData.objects.filter(
+                calculation=calculation,
+                parameter=param
+            ).update(
+                value_before=value_before,
+                value_after=value_after,
+                actions_description=actions_description
+            )
+
+        current_index = PARAMETER_CODES.index(group_code)
+        if current_index < len(PARAMETER_CODES) - 1:
+            next_code = PARAMETER_CODES[current_index + 1]
+            return redirect('calculations:rX', calc_id=calculation.id, group_code=next_code)
+        else:
+            calculation.is_complete = True
+            calculation.save()
+            return redirect('calculations:history')
+
+    context = {
+        "calculation": calculation,
+        "group": group,
+        "parameters": parameters,
+        "next_code": next_code,
+        "prev_code": prev_code,
+    }
+
+    return render(request, "calculations/rX.html", context)
 
 
 @login_required(login_url="/users/login/")
@@ -135,3 +208,35 @@ def history_view(request):
 def calc_details_view(request, pk):
     calc = get_object_or_404(Calculation, pk=pk)
     return render(request, 'calculations/calc_details.html', {'calc': calc})
+
+
+
+@login_required
+@csrf_exempt
+def save_param_value(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid method"})
+
+    try:
+        data = json.loads(request.body)
+        calc_id = data.get("calc_id")
+        param_id = data.get("param_id")
+        field_type = data.get("field_type")
+        value = data.get("value")
+
+        if field_type not in ["value_before", "value_after", "actions_description"]:
+            return JsonResponse({"success": False, "error": "Invalid field type"})
+
+        cp_data, created = CalculationParameterData.objects.get_or_create(
+            calculation_id=calc_id,
+            parameter_id=param_id,
+            defaults={"value_before": "", "value_after": "", "actions_description": ""}
+        )
+
+        setattr(cp_data, field_type, value)
+        cp_data.save()
+
+        return JsonResponse({"success": True})
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})

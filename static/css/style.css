@@ -341,3 +341,75 @@ main {
 .clickable-row:hover {
     background-color: #f5f5f5;
 }
+
+.param-block {
+    background: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.param-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.param-label {
+    display: block;
+    font-weight: bold;
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.param-select, .param-textarea {
+    width: 100%;
+    /* padding: 8px; */
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.param-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.param-actions {
+    text-align: right;
+    margin-top: 20px;
+}
+
+.btn-next {
+    background: #333;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-next:hover {
+    text-decoration: underline;
+}
+
+.btn-prev {
+    background: #ccc;
+    color: #000;
+    border: none;
+    padding: 10px 18px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    margin-right: 10px;
+}
+
+.btn-prev:hover {
+    background: #bbb;
+}
+

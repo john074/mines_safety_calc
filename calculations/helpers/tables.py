@@ -901,9 +901,9 @@ r8 = {
 }
 
 def populate_database():
-    ParameterOption.objects.all().delete()
-    Parameter.objects.all().delete()
-    ParameterGroup.objects.all().delete()
+    #ParameterOption.objects.all().delete()
+    #Parameter.objects.all().delete()
+    #ParameterGroup.objects.all().delete()
 
     group_data = [
         ('r0', "Факторы, влияющие на опасности (риски) аварий, и индексы опасности аварий, обусловленные влиянием субъективного (человеческого) фактора"),

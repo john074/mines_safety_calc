@@ -1,0 +1,58 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    {{ group.name }} ({{ group.code }})
+{% endblock %}
+
+{% block content %}
+    <h1 class="header">{{ group.name }} ({{ group.code }})</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for param in parameters %}
+            <div class="param-block">
+                <h3 class="param-title">{{ param.order_num }}. {{ param.text }}</h3>
+
+                <label class="param-label">Значение критерия до применения компенсирующих мероприятий</label>
+                <select name="before_{{ param.id }}" class="param-select" data-param-id="{{ param.id }}" data-field-type="value_before">
+                    {% for opt in param.options.all %}
+                        <option value="{{ opt.text }}" {% if param.data and param.data.value_before == opt.text %}selected{% endif %}>
+                            {{ opt.text }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label class="param-label">Описание компенсирующих мероприятий</label>
+                <textarea name="actions_{{ param.id }}" class="param-textarea" data-param-id="{{ param.id }}" data-field-type="actions_description">{{ param.data.actions_description }}</textarea>
+
+                <label class="param-label">Значение критерия после применения компенсирующих мероприятий</label>
+                <select name="after_{{ param.id }}" class="param-select" data-param-id="{{ param.id }}" data-field-type="value_after">
+                    {% for opt in param.options.all %}
+                        <option value="{{ opt.text }}" {% if param.data and param.data.value_after == opt.text %}selected{% endif %}>
+                            {{ opt.text }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endfor %}
+
+
+        <div class="param-actions">
+            {% if group.code != 'r0' %}
+                <a href="{% url 'calculations:rX' calc_id=calculation.id group_code=prev_code %}" class="btn-prev">Назад</a>
+            {% endif %}
+            {% if group.code != 'r8' %}
+                <button type="submit" class="btn-next">Далее</button>
+            {% else %}
+                <button type="submit" class="btn-next">Завершить</button>
+            {% endif %}
+        </div>
+    </form>
+
+    <div id="page-data"
+        data-save-url="{% url 'calculations:save_param_value' %}"
+        data-calc-id="{{ calculation.id }}"
+        data-csrf-token="{{ csrf_token }}">
+    </div>
+{% endblock %}

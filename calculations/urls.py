@@ -7,6 +7,7 @@ urlpatterns = [
     path('newcalc/', views.newcalc_view, name='newcalc'),
     path('company/', views.company_view, name='company'),
     path('history/', views.history_view, name='history'),
-    path('r0/', views.r0_view, name='r0'),
+    path('rX/<int:calc_id>/<str:group_code>/', views.rX_view, name='rX'),
     path('calc/<int:pk>/', views.calc_details_view, name='calc_details'),
+    path("save_param_value/", views.save_param_value, name="save_param_value"),
 ]
