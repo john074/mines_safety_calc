@@ -50,3 +50,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+document.addEventListener("DOMContentLoaded", function() {
+    const finishBtn = document.getElementById("finish-btn");
+    const modal = document.getElementById("finish-modal");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const confirmBtn = document.getElementById("confirm-btn");
+    const form = document.getElementById("rx-form");
+
+    if (finishBtn) {
+        finishBtn.addEventListener("click", function() {
+            modal.style.display = "flex";
+        });
+    }
+
+    cancelBtn.addEventListener("click", function() {
+        modal.style.display = "none";
+    });
+
+    confirmBtn.addEventListener("click", function() {
+        const hiddenInput = document.createElement("input");
+        hiddenInput.type = "hidden";
+        hiddenInput.name = "confirm_finish";
+        hiddenInput.value = "1";
+        form.appendChild(hiddenInput);
+        form.submit();
+    });
+});

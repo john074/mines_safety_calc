@@ -2,10 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .helpers.get_data_by_inn import get_data
-from .models import Calculation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData
-from django.db.models import Q, Prefetch
+from .models import Calculation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData, CalculationResult
+from django.db.models import Q, Prefetch, F, Sum, Max
 from django.db import transaction
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from datetime import datetime
 import json
@@ -72,7 +71,7 @@ PARAMETER_CODES = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8']
 
 @login_required(login_url="/users/login/")
 def rX_view(request, calc_id, group_code):
-    calculation = get_object_or_404(Calculation, id=calc_id)
+    calculation = get_object_or_404(Calculation, id=calc_id, user=request.user)
     if (calculation.is_complete):
         return redirect('calculations:history')
     group = get_object_or_404(ParameterGroup, code=group_code)
@@ -127,9 +126,10 @@ def rX_view(request, calc_id, group_code):
             next_code = PARAMETER_CODES[current_index + 1]
             return redirect('calculations:rX', calc_id=calculation.id, group_code=next_code)
         else:
-            calculation.is_complete = True
-            calculation.save()
-            return redirect('calculations:history')
+            if request.POST.get("confirm_finish") == "1":
+                calculation.is_complete = True
+                calculation.save()
+                return redirect('calculations:history')
 
     context = {
         "calculation": calculation,
@@ -205,14 +205,6 @@ def history_view(request):
 
 
 @login_required(login_url="/users/login/")
-def calc_details_view(request, pk):
-    calc = get_object_or_404(Calculation, pk=pk)
-    return render(request, 'calculations/calc_details.html', {'calc': calc})
-
-
-
-@login_required
-@csrf_exempt
 def save_param_value(request):
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Invalid method"})
@@ -223,6 +215,11 @@ def save_param_value(request):
         param_id = data.get("param_id")
         field_type = data.get("field_type")
         value = data.get("value")
+
+        try:
+            calc = Calculation.objects.get(id=calc_id, user=request.user)
+        except Calculation.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Calculation not found or access denied"})
 
         if field_type not in ["value_before", "value_after", "actions_description"]:
             return JsonResponse({"success": False, "error": "Invalid field type"})
@@ -240,3 +237,184 @@ def save_param_value(request):
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
+
+
+def get_linguistic_level(percentage):
+    if percentage == 0.0:
+        return 'Не оценивается'
+    elif percentage < 10:
+        return 'Низкий уровень опасности'
+    elif percentage < 20:
+        return 'Умеренный уровень опасности'
+    elif percentage < 33:
+        return 'Средний уровень опасности'
+    elif percentage < 50:
+        return 'Значительный уровень опасности'
+    elif percentage < 90:
+        return 'Высокий уровень опасности'
+    else:
+        return 'Чрезвычайно высокий уровень опасности'
+
+
+def get_conclusion(before_percentage, after_percentage):
+    if before_percentage == 0.0:
+        return 'Не оценивается'
+    elif before_percentage == after_percentage:
+        return 'Уровень риска без изменений'
+    elif after_percentage < before_percentage:
+        return 'Уровень риска уменьшился, уровень безопасности увеличился'
+    else:
+        return 'Уровень риска увеличился, уровень безопасности снизился'
+
+
+@login_required(login_url="/users/login/")
+def calc_details_view(request, pk):
+    calculation = get_object_or_404(Calculation, pk=pk)
+    
+    CalculationResult.objects.filter(calculation=calculation).delete()
+    
+    parameter_groups = ParameterGroup.objects.all().order_by('code')
+    
+    total_before_sum = 0
+    total_after_sum = 0
+    total_max_sum = 0
+    
+    max_group_before_percentage = 0
+    max_group_after_percentage = 0
+
+    r0_results = None
+    
+    for group in parameter_groups:
+        group_data = CalculationParameterData.objects.filter(
+            calculation=calculation,
+            parameter__group=group
+        ).select_related('parameter', 'parameter__group')
+
+        first_param_coefficient = -1
+        if group.code in ['r1', 'r2', 'r3', 'r5', 'r8']:
+            first_param_data = group_data.filter(parameter__order_num=1).first()
+            if first_param_data:
+                try:
+                    first_param_option = ParameterOption.objects.get(
+                        parameter=first_param_data.parameter,
+                        text=first_param_data.value_before
+                    )
+                    first_param_coefficient = first_param_option.coefficient
+                except ParameterOption.DoesNotExist:
+                    pass
+
+        r4_coefficients_zero = False
+        if group.code == 'r4':
+            r4_data = group_data.filter(parameter__order_num__lte=4)
+            r4_coefficients = []
+            for data in r4_data:
+                try:
+                    option = ParameterOption.objects.get(
+                        parameter=data.parameter,
+                        text=data.value_before
+                    )
+                    r4_coefficients.append(option.coefficient)
+                except ParameterOption.DoesNotExist:
+                    pass
+            if len(r4_coefficients) == 4 and all(c == 0 for c in r4_coefficients):
+                r4_coefficients_zero = True
+
+        
+        group_before_sum = 0
+        group_after_sum = 0
+        group_max_sum = 0
+        
+        if (group.code in ['r1', 'r2', 'r3', 'r5', 'r8'] and first_param_coefficient == 0) or r4_coefficients_zero:
+            group_before_sum = 0
+            group_after_sum = 0
+            group_max_sum = 0
+            before_percentage = 0.0
+            after_percentage = 0.0
+            before_linguistic_level = 'Не оценивается'
+            after_linguistic_level = 'Не оценивается'
+            difference = 0.0
+            conclusion = 'Не оценивается'
+            
+        else:
+            for data in group_data:
+                try:
+                    option_before = ParameterOption.objects.get(parameter=data.parameter, text=data.value_before)
+                    group_before_sum += option_before.coefficient
+                except ParameterOption.DoesNotExist:
+                    pass
+                
+                try:
+                    option_after = ParameterOption.objects.get(parameter=data.parameter, text=data.value_after)
+                    group_after_sum += option_after.coefficient
+                except ParameterOption.DoesNotExist:
+                    pass
+            
+            group_max_sum_list = [
+                ParameterOption.objects.filter(parameter=p.parameter).aggregate(max_coeff=Max('coefficient'))['max_coeff'] or 0
+                for p in group_data
+            ]
+            group_max_sum = sum(group_max_sum_list)
+
+            r0_before_sum = 0 if r0_results == None else r0_results.before_sum
+            r0_after_sum = 0 if r0_results == None else r0_results.after_sum
+            r0_max_sum = 0 if r0_results == None else r0_results.max_sum
+
+            before_percentage = ((group_before_sum + r0_before_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
+            after_percentage = ((group_after_sum + r0_after_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
+
+            before_linguistic_level = get_linguistic_level(before_percentage)
+            after_linguistic_level = get_linguistic_level(after_percentage)
+
+            difference = after_percentage - before_percentage
+            conclusion = get_conclusion(before_percentage, after_percentage)
+        
+        total_before_sum += group_before_sum
+        total_after_sum += group_after_sum
+        total_max_sum += group_max_sum
+        
+        if before_percentage > max_group_before_percentage:
+            max_group_before_percentage = before_percentage
+            
+        if after_percentage > max_group_after_percentage:
+            max_group_after_percentage = after_percentage
+            
+        res = CalculationResult.objects.create(
+            calculation=calculation,
+            group=group,
+            before_sum=group_before_sum,
+            before_percentage=before_percentage,
+            before_linguistic_level=before_linguistic_level,
+            after_sum=group_after_sum,
+            after_percentage=after_percentage,
+            after_linguistic_level=after_linguistic_level,
+            max_sum=group_max_sum,
+            difference=difference,
+            conclusion=conclusion
+        )
+
+        if group.code == 'r0':
+            r0_results = res
+
+    total_before_percentage = (total_before_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
+    total_after_percentage = (total_after_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
+    
+    results = CalculationResult.objects.filter(calculation=calculation).order_by('group__code')
+    
+    context = {
+        'calculation': calculation,
+        'results': results,
+        'total_before_percentage': total_before_percentage,
+        'total_after_percentage': total_after_percentage,
+        'total_before_linguistic_level': get_linguistic_level(total_before_percentage),
+        'total_after_linguistic_level': get_linguistic_level(total_after_percentage),
+        'total_difference': total_after_percentage - total_before_percentage,
+        'total_conclusion': get_conclusion(total_before_percentage, total_after_percentage),
+        'max_before_percentage': max_group_before_percentage,
+        'max_after_percentage': max_group_after_percentage,
+        'max_before_linguistic_level': get_linguistic_level(max_group_before_percentage),
+        'max_after_linguistic_level': get_linguistic_level(max_group_after_percentage),
+        'max_difference': max_group_after_percentage - max_group_before_percentage,
+        'max_conclusion': get_conclusion(max_group_before_percentage, max_group_after_percentage),
+    }
+
+    return render(request, 'calculations/calc_details.html', context)

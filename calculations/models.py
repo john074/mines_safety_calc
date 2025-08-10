@@ -42,3 +42,33 @@ class CalculationParameterData(models.Model):
 
     class Meta:
         unique_together = ('calculation', 'parameter')
+
+
+class CalculationResult(models.Model):
+    calculation = models.ForeignKey(
+        Calculation,
+        on_delete=models.CASCADE,
+        related_name='results'
+    )
+    group = models.ForeignKey(
+        ParameterGroup,
+        on_delete=models.CASCADE
+    )
+
+    before_sum = models.FloatField(default=0.0)
+    before_percentage = models.FloatField(default=0.0)
+    before_linguistic_level = models.CharField(max_length=50, default='Не оценивается')
+
+    after_sum = models.FloatField(default=0.0)
+    after_percentage = models.FloatField(default=0.0)
+    after_linguistic_level = models.CharField(max_length=50, default='Не оценивается')
+
+    max_sum = models.FloatField(default=0.0)
+
+    difference = models.FloatField(default=0.0)
+    conclusion = models.CharField(max_length=100, default='')
+
+    class Meta:
+        unique_together = ('calculation', 'group')
+        verbose_name = 'Результат расчета'
+        verbose_name_plural = 'Результаты расчетов'

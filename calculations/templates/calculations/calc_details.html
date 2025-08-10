@@ -5,9 +5,145 @@
 {% endblock %}
 
 {% block content %}
-    <h1 class="header">Calc Details</h1>
-    <div class="form-group">
-        <label for="inn">ИНН</label>
-        <input type="text" id="inn" name="inn" value="{{ calc }}" required>
+<div class="results-container">
+    <h2 class="results-header">Результаты расчета для {{ calculation.organisation_name }}</h2>
+        
+    <div class="results-table-wrapper">
+        <h3 class="results-subheader">Сведения до принятия компенсирующих мер</h3>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Максимальный ИОА по фактору, балл</th>
+                    <th>Принятый ИОА по фактору, балл</th>
+                    <th>Показатель опасности аварии по фактору, %</th>
+                    <th>Лингвистический уровень (категория) опасности (риска)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>{{ result.group.name }}</td>
+                    <td>{{ result.group.code }}</td>
+                    <td class="results-text-center">{{ result.max_sum|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ result.before_sum|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ result.before_percentage|floatformat:2 }}</td>
+                    <td>{{ result.before_linguistic_level }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="results-total-row">
+                    <td colspan="2">Интегральный показатель опасности (риска)</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">{{ total_before_percentage|floatformat:2 }}</td>
+                    <td>{{ total_before_linguistic_level }}</td>
+                </tr>
+                <tr class="results-total-row">
+                    <td colspan="2">Показатель опасности (риска) аварий на шахте</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">{{ max_before_percentage|floatformat:2 }}</td>
+                    <td>{{ max_before_linguistic_level }}</td>
+                </tr>
+                <tr class="results-footer-note">
+                    <td colspan="6">
+                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: {{ max_before_linguistic_level }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
+
+    <div class="results-table-wrapper">
+        <h3 class="results-subheader">Сведения после применения компенсирующих мер</h3>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Максимальный ИОА по фактору, балл</th>
+                    <th>Принятый ИОА по фактору, балл</th>
+                    <th>Показатель опасности аварии по фактору, %</th>
+                    <th>Лингвистический уровень (категория) опасности (риска)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>{{ result.group.name }}</td>
+                    <td>{{ result.group.code }}</td>
+                    <td class="results-text-center">{{ result.max_sum|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ result.after_sum|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ result.after_percentage|floatformat:2 }}</td>
+                    <td>{{ result.after_linguistic_level }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="results-total-row">
+                    <td colspan="2">Интегральный показатель опасности (риска)</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">{{ total_after_percentage|floatformat:2 }}</td>
+                    <td>{{ total_after_linguistic_level }}</td>
+                </tr>
+                <tr class="results-total-row">
+                    <td colspan="2">Показатель опасности (риска) аварий на шахте</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">-</td>
+                    <td class="results-text-center">{{ max_after_percentage|floatformat:2 }}</td>
+                    <td>{{ max_after_linguistic_level }}</td>
+                </tr>
+                <tr class="results-footer-note">
+                    <td colspan="6">
+                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: {{ max_after_linguistic_level }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="results-table-wrapper">
+        <h3 class="results-subheader">Сравнительная характеристика опасностей и уровня риска аварий до и после применения компенсирующих мероприятий</h3>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Показатель опасности аварии по фактору, %, с учетом компенсирующих мероприятий</th>
+                    <th>Лингвистический уровень опасности</th>
+                    <th>Оценка (разница)</th>
+                    <th>Выводы</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>{{ result.group.name }}</td>
+                    <td>{{ result.group.code }}</td>
+                    <td class="results-text-center">{{ result.after_percentage|floatformat:2 }}</td>
+                    <td>{{ result.after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ result.difference|floatformat:2 }}</td>
+                    <td class="
+                        {% if result.conclusion == 'Уровень риска уменьшился, уровень безопасности увеличился' %}results-conclusion-positive
+                        {% elif result.conclusion == 'Уровень риска увеличился, уровень безопасности снизился' %}results-conclusion-negative
+                        {% else %}results-conclusion-neutral
+                        {% endif %}
+                    ">{{ result.conclusion }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="results-total-row">
+                    <td colspan="2">Интегральный показатель опасности (риска)</td>
+                    <td class="results-text-center">{{ total_after_percentage|floatformat:2 }}</td>
+                    <td>{{ total_after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ total_difference|floatformat:2 }}</td>
+                    <td>{{ total_conclusion }}</td>
+                </tr>
+                <tr class="results-total-row">
+                    <td colspan="2">Показатель опасности (риска) аварий на шахте</td>
+                    <td class="results-text-center">{{ max_after_percentage|floatformat:2 }}</td>
+                    <td>{{ max_after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ max_difference|floatformat:2 }}</td>
+                    <td>{{ max_conclusion }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

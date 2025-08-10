@@ -7,7 +7,7 @@
 {% block content %}
     <h1 class="header">{{ group.name }} ({{ group.code }})</h1>
 
-    <form method="post">
+    <form method="post" id="rx-form">
         {% csrf_token %}
 
         {% for param in parameters %}
@@ -45,10 +45,21 @@
             {% if group.code != 'r8' %}
                 <button type="submit" class="btn-next">Далее</button>
             {% else %}
-                <button type="submit" class="btn-next">Завершить</button>
+                <button type="button" id="finish-btn" class="btn-next">Завершить</button>
             {% endif %}
         </div>
     </form>
+
+    <div id="finish-modal" class="modal-overlay">
+        <div class="modal-window">
+            <h2>Подтверждение завершения</h2>
+            <p>Проверьте корректность всех введенных данных. После завершения расчёт будет заблокирован для изменений. Вы уверены, что хотите продолжить?</p>
+            <div class="modal-actions">
+                <button id="cancel-btn" class="btn-cancel">Отмена</button>
+                <button id="confirm-btn" class="btn-confirm">Подтвердить</button>
+            </div>
+        </div>
+    </div>
 
     <div id="page-data"
         data-save-url="{% url 'calculations:save_param_value' %}"
