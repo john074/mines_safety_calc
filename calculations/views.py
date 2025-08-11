@@ -240,9 +240,7 @@ def save_param_value(request):
 
 
 def get_linguistic_level(percentage):
-    if percentage == 0.0:
-        return 'Не оценивается'
-    elif percentage < 10:
+    if percentage < 10:
         return 'Низкий уровень опасности'
     elif percentage < 20:
         return 'Умеренный уровень опасности'
@@ -256,8 +254,19 @@ def get_linguistic_level(percentage):
         return 'Чрезвычайно высокий уровень опасности'
 
 
-def get_conclusion(before_percentage, after_percentage):
-    if before_percentage == 0.0:
+recomendations = {
+    'Не оценивается' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности",
+    'Низкий уровень опасности' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности",
+    'Умеренный уровень опасности' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности",
+    'Средний уровень опасности' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности. Разработка плана выполнения мероприятий по снижению категории опасности (риска) аварии",
+    'Значительный уровень опасности' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности. Разработка плана выполнения мероприятий по снижению категории опасности (риска) аварии",
+    'Высокий уровень опасности' : "Поддержание системы противоаварийной защиты в работоспособном состоянии; контроль источников опасности; контроль возникновения новых источников опасности. Разработка плана выполнения мероприятий по снижению категории опасности (риска) аварии. Главному инженеру необходимо разработать и утвердить обоснование возможности безопасного ведения работ, обеспечиваемой за счет снижения нагрузки и принятия дополнительных защитных мероприятий до снижения категории опасности (риска) аварии",
+    'Чрезвычайно высокий уровень опасности' : "Обязательная приостановка горных работ, кроме работ по поддержанию жизнедеятельности шахты - проветривание, откачка воды и устранения причин недопустимого уровня риска аварии до снижения категории опасности (риска) аварии до допустимого уровня"
+}
+
+
+def get_conclusion(before_percentage, after_percentage, group_code):
+    if before_percentage == 0.0 and group_code in ['r1', 'r2', 'r3', 'r4', 'r5', 'r8']:
         return 'Не оценивается'
     elif before_percentage == after_percentage:
         return 'Уровень риска без изменений'
@@ -270,136 +279,144 @@ def get_conclusion(before_percentage, after_percentage):
 @login_required(login_url="/users/login/")
 def calc_details_view(request, pk):
     calculation = get_object_or_404(Calculation, pk=pk)
-    
-    CalculationResult.objects.filter(calculation=calculation).delete()
-    
-    parameter_groups = ParameterGroup.objects.all().order_by('code')
-    
-    total_before_sum = 0
-    total_after_sum = 0
-    total_max_sum = 0
-    
-    max_group_before_percentage = 0
-    max_group_after_percentage = 0
+    user = request.user
+    if user != calculation.user and not user.groups.filter(name="boss").exists():
+        return redirect('calculations:history')
 
-    r0_results = None
-    
-    for group in parameter_groups:
-        group_data = CalculationParameterData.objects.filter(
-            calculation=calculation,
-            parameter__group=group
-        ).select_related('parameter', 'parameter__group')
+    if not calculation.is_complete:
+        return redirect('calculations:rX', calc_id=calculation.id, group_code='r0')
 
-        first_param_coefficient = -1
-        if group.code in ['r1', 'r2', 'r3', 'r5', 'r8']:
-            first_param_data = group_data.filter(parameter__order_num=1).first()
-            if first_param_data:
-                try:
-                    first_param_option = ParameterOption.objects.get(
-                        parameter=first_param_data.parameter,
-                        text=first_param_data.value_before
-                    )
-                    first_param_coefficient = first_param_option.coefficient
-                except ParameterOption.DoesNotExist:
-                    pass
+    results = CalculationResult.objects.filter(calculation=calculation).order_by('group__code')
 
-        r4_coefficients_zero = False
-        if group.code == 'r4':
-            r4_data = group_data.filter(parameter__order_num__lte=4)
-            r4_coefficients = []
-            for data in r4_data:
-                try:
-                    option = ParameterOption.objects.get(
-                        parameter=data.parameter,
-                        text=data.value_before
-                    )
-                    r4_coefficients.append(option.coefficient)
-                except ParameterOption.DoesNotExist:
-                    pass
-            if len(r4_coefficients) == 4 and all(c == 0 for c in r4_coefficients):
-                r4_coefficients_zero = True
-
+    if not results.exists():
+        parameter_groups = ParameterGroup.objects.all().order_by('code')
         
-        group_before_sum = 0
-        group_after_sum = 0
-        group_max_sum = 0
+        total_before_sum = 0
+        total_after_sum = 0
+        total_max_sum = 0
         
-        if (group.code in ['r1', 'r2', 'r3', 'r5', 'r8'] and first_param_coefficient == 0) or r4_coefficients_zero:
+        max_group_before_percentage = 0
+        max_group_after_percentage = 0
+        
+        r0_results = None
+
+        for group in parameter_groups:
+            group_data = CalculationParameterData.objects.filter(
+                calculation=calculation,
+                parameter__group=group
+            ).select_related('parameter', 'parameter__group')
+
+            first_param_coefficient = -1
+            if group.code in ['r1', 'r2', 'r3', 'r5', 'r8']:
+                first_param_data = group_data.filter(parameter__order_num=1).first()
+                if first_param_data:
+                    try:
+                        first_param_option = ParameterOption.objects.get(
+                            parameter=first_param_data.parameter,
+                            text=first_param_data.value_before
+                        )
+                        first_param_coefficient = first_param_option.coefficient
+                    except ParameterOption.DoesNotExist:
+                        pass
+
+            r4_coefficients_zero = False
+            if group.code == 'r4':
+                r4_data = group_data.filter(parameter__order_num__lte=4)
+                r4_coefficients = []
+                for data in r4_data:
+                    try:
+                        option = ParameterOption.objects.get(
+                            parameter=data.parameter,
+                            text=data.value_before
+                        )
+                        r4_coefficients.append(option.coefficient)
+                    except ParameterOption.DoesNotExist:
+                        pass
+                if len(r4_coefficients) == 4 and all(c == 0 for c in r4_coefficients):
+                    r4_coefficients_zero = True
+
             group_before_sum = 0
             group_after_sum = 0
             group_max_sum = 0
-            before_percentage = 0.0
-            after_percentage = 0.0
-            before_linguistic_level = 'Не оценивается'
-            after_linguistic_level = 'Не оценивается'
-            difference = 0.0
-            conclusion = 'Не оценивается'
-            
-        else:
-            for data in group_data:
-                try:
-                    option_before = ParameterOption.objects.get(parameter=data.parameter, text=data.value_before)
-                    group_before_sum += option_before.coefficient
-                except ParameterOption.DoesNotExist:
-                    pass
-                
-                try:
-                    option_after = ParameterOption.objects.get(parameter=data.parameter, text=data.value_after)
-                    group_after_sum += option_after.coefficient
-                except ParameterOption.DoesNotExist:
-                    pass
-            
-            group_max_sum_list = [
-                ParameterOption.objects.filter(parameter=p.parameter).aggregate(max_coeff=Max('coefficient'))['max_coeff'] or 0
-                for p in group_data
-            ]
-            group_max_sum = sum(group_max_sum_list)
 
-            r0_before_sum = 0 if r0_results == None else r0_results.before_sum
-            r0_after_sum = 0 if r0_results == None else r0_results.after_sum
-            r0_max_sum = 0 if r0_results == None else r0_results.max_sum
+            if (group.code in ['r1', 'r2', 'r3', 'r5', 'r8'] and first_param_coefficient == 0) or r4_coefficients_zero:
+                before_percentage = 0.0
+                after_percentage = 0.0
+                before_linguistic_level = 'Не оценивается'
+                after_linguistic_level = 'Не оценивается'
+                difference = 0.0
+                conclusion = 'Не оценивается'
+            else:
+                for data in group_data:
+                    try:
+                        option_before = ParameterOption.objects.get(parameter=data.parameter, text=data.value_before)
+                        group_before_sum += option_before.coefficient
+                    except ParameterOption.DoesNotExist:
+                        pass
 
-            before_percentage = ((group_before_sum + r0_before_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
-            after_percentage = ((group_after_sum + r0_after_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
+                    try:
+                        option_after = ParameterOption.objects.get(parameter=data.parameter, text=data.value_after)
+                        group_after_sum += option_after.coefficient
+                    except ParameterOption.DoesNotExist:
+                        pass
 
-            before_linguistic_level = get_linguistic_level(before_percentage)
-            after_linguistic_level = get_linguistic_level(after_percentage)
+                group_max_sum_list = [
+                    ParameterOption.objects.filter(parameter=p.parameter).aggregate(max_coeff=Max('coefficient'))['max_coeff'] or 0
+                    for p in group_data
+                ]
+                group_max_sum = sum(group_max_sum_list)
 
-            difference = after_percentage - before_percentage
-            conclusion = get_conclusion(before_percentage, after_percentage)
-        
-        total_before_sum += group_before_sum
-        total_after_sum += group_after_sum
-        total_max_sum += group_max_sum
-        
-        if before_percentage > max_group_before_percentage:
-            max_group_before_percentage = before_percentage
-            
-        if after_percentage > max_group_after_percentage:
-            max_group_after_percentage = after_percentage
-            
-        res = CalculationResult.objects.create(
-            calculation=calculation,
-            group=group,
-            before_sum=group_before_sum,
-            before_percentage=before_percentage,
-            before_linguistic_level=before_linguistic_level,
-            after_sum=group_after_sum,
-            after_percentage=after_percentage,
-            after_linguistic_level=after_linguistic_level,
-            max_sum=group_max_sum,
-            difference=difference,
-            conclusion=conclusion
-        )
+                r0_before_sum = 0 if r0_results is None else r0_results.before_sum
+                r0_after_sum = 0 if r0_results is None else r0_results.after_sum
+                r0_max_sum = 0 if r0_results is None else r0_results.max_sum
 
-        if group.code == 'r0':
-            r0_results = res
+                before_percentage = ((group_before_sum + r0_before_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
+                after_percentage = ((group_after_sum + r0_after_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
+
+                before_linguistic_level = get_linguistic_level(before_percentage)
+                after_linguistic_level = get_linguistic_level(after_percentage)
+
+                difference = after_percentage - before_percentage
+                conclusion = get_conclusion(before_percentage, after_percentage, group.code)
+
+            total_before_sum += group_before_sum
+            total_after_sum += group_after_sum
+            total_max_sum += group_max_sum
+
+            if before_percentage > max_group_before_percentage:
+                max_group_before_percentage = before_percentage
+            if after_percentage > max_group_after_percentage:
+                max_group_after_percentage = after_percentage
+
+            res = CalculationResult.objects.create(
+                calculation=calculation,
+                group=group,
+                before_sum=group_before_sum,
+                before_percentage=before_percentage,
+                before_linguistic_level=before_linguistic_level,
+                after_sum=group_after_sum,
+                after_percentage=after_percentage,
+                after_linguistic_level=after_linguistic_level,
+                max_sum=group_max_sum,
+                difference=difference,
+                conclusion=conclusion
+            )
+
+            if group.code == 'r0':
+                r0_results = res
+
+        results = CalculationResult.objects.filter(calculation=calculation).order_by('group__code')
+
+    total_max_sum = sum(r.max_sum for r in results)
+    total_before_sum = sum(r.before_sum for r in results)
+    total_after_sum = sum(r.after_sum for r in results)
 
     total_before_percentage = (total_before_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
     total_after_percentage = (total_after_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
-    
-    results = CalculationResult.objects.filter(calculation=calculation).order_by('group__code')
-    
+
+    max_group_before_percentage = max(r.before_percentage for r in results)
+    max_group_after_percentage = max(r.after_percentage for r in results)
+
     context = {
         'calculation': calculation,
         'results': results,
@@ -408,13 +425,15 @@ def calc_details_view(request, pk):
         'total_before_linguistic_level': get_linguistic_level(total_before_percentage),
         'total_after_linguistic_level': get_linguistic_level(total_after_percentage),
         'total_difference': total_after_percentage - total_before_percentage,
-        'total_conclusion': get_conclusion(total_before_percentage, total_after_percentage),
+        'total_conclusion': get_conclusion(total_before_percentage, total_after_percentage, 'R'),
         'max_before_percentage': max_group_before_percentage,
         'max_after_percentage': max_group_after_percentage,
         'max_before_linguistic_level': get_linguistic_level(max_group_before_percentage),
         'max_after_linguistic_level': get_linguistic_level(max_group_after_percentage),
         'max_difference': max_group_after_percentage - max_group_before_percentage,
-        'max_conclusion': get_conclusion(max_group_before_percentage, max_group_after_percentage),
+        'max_conclusion': get_conclusion(max_group_before_percentage, max_group_after_percentage, 'R'),
+        'recomendations_before': recomendations[get_linguistic_level(max_group_before_percentage)],
+        'recomendations_after': recomendations[get_linguistic_level(max_group_after_percentage)]
     }
 
     return render(request, 'calculations/calc_details.html', context)

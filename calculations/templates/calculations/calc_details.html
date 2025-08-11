@@ -6,14 +6,24 @@
 
 {% block content %}
 <div class="results-container">
-    <h2 class="results-header">Результаты расчета для {{ calculation.organisation_name }}</h2>
-        
-    <div class="results-table-wrapper">
-        <h3 class="results-subheader">Сведения до принятия компенсирующих мер</h3>
+    <h2 class="results-header">Результаты расчета для «{{ calculation.organisation_name }}»</h2>
+    
+   <div class="results-org-info">
+        <p>
+            ИНН: {{ calculation.organisation_INN }}<br>
+            КПП: {{ calculation.organisation_KPP }}<br>
+            ОГРН: {{ calculation.organisation_OGRN }}<br>
+            Юр. Адрес: {{ calculation.organisation_address }}<br>
+        </p>
+    </div>
+
+    <div class="results-table-wrapper first-table-wrapper">
+        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии до принятия компенсирующих мер</h3>
         <table class="results-table">
             <thead>
                 <tr>
-                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Факторы, влияющие на опасность</th>
+                    <th>Обозначение блока факторов</th>
                     <th>Максимальный ИОА по фактору, балл</th>
                     <th>Принятый ИОА по фактору, балл</th>
                     <th>Показатель опасности аварии по фактору, %</th>
@@ -24,7 +34,7 @@
                 {% for result in results %}
                 <tr>
                     <td>{{ result.group.name }}</td>
-                    <td>{{ result.group.code }}</td>
+                    <td class="results-text-center">{{ result.group.code }}</td>
                     <td class="results-text-center">{{ result.max_sum|floatformat:2 }}</td>
                     <td class="results-text-center">{{ result.before_sum|floatformat:2 }}</td>
                     <td class="results-text-center">{{ result.before_percentage|floatformat:2 }}</td>
@@ -47,7 +57,17 @@
                 </tr>
                 <tr class="results-footer-note">
                     <td colspan="6">
-                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: {{ max_before_linguistic_level }}
+                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: <strong>{{ max_before_linguistic_level }}</strong>
+                    </td>
+                </tr>
+                <tr class="results-footer-note">
+                    <td colspan="6">
+                        Рекомендованная стратегия по дальнейшей обработке риска (в соответствии с таблицей 11 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах"):
+                    </td>
+                </tr>
+                <tr class="results-total-row">
+                    <td colspan="6">
+                        {{ recomendations_before }}
                     </td>
                 </tr>
             </tbody>
@@ -55,11 +75,12 @@
     </div>
 
     <div class="results-table-wrapper">
-        <h3 class="results-subheader">Сведения после применения компенсирующих мер</h3>
+        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии после применения компенсирующих мер</h3>
         <table class="results-table">
             <thead>
                 <tr>
-                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Факторы, влияющие на опасность</th>
+                    <th>Обозначение блока факторов</th>
                     <th>Максимальный ИОА по фактору, балл</th>
                     <th>Принятый ИОА по фактору, балл</th>
                     <th>Показатель опасности аварии по фактору, %</th>
@@ -93,7 +114,17 @@
                 </tr>
                 <tr class="results-footer-note">
                     <td colspan="6">
-                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: {{ max_after_linguistic_level }}
+                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: <strong>{{ max_after_linguistic_level }}</strong>
+                    </td>
+                </tr>
+                <tr class="results-footer-note">
+                    <td colspan="6">
+                        Рекомендованная стратегия по дальнейшей обработке риска (в соответствии с таблицей 11 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах"):
+                    </td>
+                </tr>
+                <tr class="results-total-row">
+                    <td colspan="6">
+                        {{ recomendations_after }}
                     </td>
                 </tr>
             </tbody>
@@ -105,7 +136,8 @@
         <table class="results-table">
             <thead>
                 <tr>
-                    <th colspan="2">Факторы, влияющие на опасность</th>
+                    <th>Факторы, влияющие на опасность</th>
+                    <th>Обозначение блока факторов</th>
                     <th>Показатель опасности аварии по фактору, %, с учетом компенсирующих мероприятий</th>
                     <th>Лингвистический уровень опасности</th>
                     <th>Оценка (разница)</th>
@@ -145,5 +177,22 @@
             </tbody>
         </table>
     </div>
+
+    <div class="param-actions">
+        <button type="button" onclick="window.print()" class="print-button btn-next">Печать</button>
+    </div>    
+
+    <div class="print-footer">
+        <p>Расчет выполнил: 
+            {% if calculation.user.first_name or calculation.user.last_name %}
+                {{ calculation.user.first_name }} {{ calculation.user.last_name }}
+            {% else %}
+                {{ calculation.user.username }}
+            {% endif %}
+        </p>
+        <p>Подпись: _____________________</p>
+        <p>Дата: {{ calculation.updated|date:"d.m.Y" }}</p>
+    </div>
+
 </div>
 {% endblock %}

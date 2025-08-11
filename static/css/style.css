@@ -567,22 +567,129 @@ main {
     font-weight: bold;
 }
 
-@media (max-width: 768px) {
-    .results-table-wrapper {
-        padding: 15px;
-    }
-    
-    .results-table th, 
-    .results-table td {
-        padding: 8px 10px;
-        font-size: 0.85rem;
-    }
-    
-    .results-header {
-        font-size: 1.5rem;
-    }
-    
-    .results-subheader {
-        font-size: 1.2rem;
-    }
+.results-org-info {
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 25px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #555;
+}
+
+.results-org-info p {
+    margin: 0;
+}
+
+.print-footer {
+    margin-top: 20px;
+    display: none;
+}
+
+@media print {
+  body {
+    font-size: 12pt;
+    color: #000;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    hyphens: auto;
+  }
+
+  :root {
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    hyphens: auto;
+  }
+
+  .results-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-button {
+    display: none;
+  }
+
+  .results-table-wrapper {
+    margin-bottom: 20px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    overflow-x: visible;
+  }
+
+  .results-org-info {
+    padding: 0;
+    border: none;
+    background-color: transparent;
+    margin-bottom: 20px;
+    font-size: 10pt;
+  }
+
+  .results-header,
+  .results-subheader {
+    font-size: 14pt;
+    text-align: left;
+    margin: 15px 0 10px;
+    border-bottom: 1px solid #000;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .results-table th,
+  .results-table td {
+    padding: 5px;
+    border: 1px solid #000;
+    word-break: auto-phrase;
+    text-align: center;
+  }
+
+  .results-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .results-table thead th {
+    background-color: #e0e0e0;
+    font-size: 9pt;
+    position: static;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .results-total-row,
+  .results-footer-note {
+    background-color: #f0f0f0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .results-conclusion-positive,
+  .results-conclusion-negative,
+  .results-conclusion-neutral {
+    color: #000;
+    background-color: transparent;
+    padding: 0;
+    font-weight: normal;
+  }
+
+  .results-text-center {
+    text-align: center;
+  }
+
+  header, footer, nav {
+    display: none;
+  }
+  .print-footer {
+    display: block;
+  }
 }
