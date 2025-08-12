@@ -379,7 +379,7 @@ main {
 
 .param-actions {
     text-align: right;
-    margin-top: 20px;
+    margin-top: 20px; 
 }
 
 .btn-next {
@@ -585,6 +585,16 @@ main {
 .print-footer {
     margin-top: 20px;
     display: none;
+}
+
+.buttons-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#rx-form {
+    margin: 0;
 }
 
 @media print {

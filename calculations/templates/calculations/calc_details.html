@@ -178,9 +178,18 @@
         </table>
     </div>
 
-    <div class="param-actions">
-        <button type="button" onclick="window.print()" class="print-button btn-next">Печать</button>
-    </div>    
+    <div class="buttons-container">
+        <form method="post" id="rx-form">
+            {% csrf_token %}
+            <button type="button" id="finish-btn" class="print-button btn-confirm">Удалить</button>
+        </form>
+        
+        <div class="param-actions">
+            <a href="{% url 'calculations:calc_answers' pk=calculation.id %}" class="btn-prev print-button">Подробности</a>
+            <button type="button" onclick="window.print()" class="print-button btn-next">Печать</button>
+        </div>  
+    </div>
+
 
     <div class="print-footer">
         <p>Расчет выполнил: 
@@ -192,6 +201,17 @@
         </p>
         <p>Подпись: _____________________</p>
         <p>Дата: {{ calculation.updated|date:"d.m.Y" }}</p>
+    </div>
+
+    <div id="finish-modal" class="modal-overlay">
+        <div class="modal-window">
+            <h2>Подтверждение удаления</h2>
+            <p>Вы уверены, что хотите удалить всю информацию о расчете? Отменить это действие невозможно</p>
+            <div class="modal-actions">
+                <button id="cancel-btn" class="btn-cancel">Отмена</button>
+                <button id="confirm-btn" class="btn-confirm">Подтвердить</button>
+            </div>
+        </div>
     </div>
 
 </div>

@@ -1,0 +1,42 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Журнал рассчетов
+{% endblock %}
+
+{% block content %}
+    {% for group, pdata_list in groups_with_data %}
+        <h3 class="results-subheader">{{ group.name }} ({{ group.code }})</h3>
+        <table border="1" class="results-table">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Параметр</th>
+                    <th>До</th>
+                    <th>Компенсирующие мероприятия</th>
+                    <th>После</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pdata_list %}
+                    {% for pdata in pdata_list %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ pdata.parameter.text }}</td>
+                            <td>{{ pdata.value_before }}</td>
+                            <td>{{ pdata.actions_description|default:"—" }}</td>
+                            <td>{{ pdata.value_after }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5">Нет данных</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    {% endfor %}
+    <div class="param-actions">
+        <a href="{% url 'calculations:calc_details' pk=calculation.id %}" class="btn-prev">Назад</a>
+    </div>    
+{% endblock %}

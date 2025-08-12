@@ -279,8 +279,7 @@ def get_conclusion(before_percentage, after_percentage, group_code):
 @login_required(login_url="/users/login/")
 def calc_details_view(request, pk):
     calculation = get_object_or_404(Calculation, pk=pk)
-    user = request.user
-    if user != calculation.user and not user.groups.filter(name="boss").exists():
+    if request.user != calculation.user and not user.groups.filter(name="boss").exists():
         return redirect('calculations:history')
 
     if not calculation.is_complete:
@@ -436,4 +435,51 @@ def calc_details_view(request, pk):
         'recomendations_after': recomendations[get_linguistic_level(max_group_after_percentage)]
     }
 
+    if request.method == "POST":
+        if request.POST.get("confirm_finish") == "1":
+            calculation.delete()
+            return redirect('calculations:history')
+
     return render(request, 'calculations/calc_details.html', context)
+
+
+@login_required(login_url="/users/login/")
+def calc_answers_view(request, pk):
+    calculation_meta = get_object_or_404(
+        Calculation.objects.only('user_id', 'is_complete'),
+        pk=pk
+    )
+
+    if (request.user != calculation_meta.user and not request.user.groups.filter(name="boss").exists()) or not calculation_meta.is_complete:
+        return redirect('calculations:history')
+
+    calculation = (
+        Calculation.objects
+        .prefetch_related(
+            Prefetch(
+                'parameter_data',
+                queryset=CalculationParameterData.objects
+                    .select_related('parameter', 'parameter__group')
+                    .order_by('parameter__order_num')
+            )
+        )
+        .get(pk=pk)
+    )
+
+    groups = list(ParameterGroup.objects.filter(code__in=PARAMETER_CODES).order_by('code'))
+
+    from collections import defaultdict
+
+    grouped_data = defaultdict(list)
+    for pdata in calculation.parameter_data.all():
+        grouped_data[pdata.parameter.group_id].append(pdata)
+
+    groups_with_data = [
+        (group, grouped_data.get(group.id, []))
+        for group in groups
+    ]
+
+    return render(request, 'calculations/calc_answers.html', {
+        'calculation': calculation,
+        'groups_with_data': groups_with_data
+    })

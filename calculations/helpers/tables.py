@@ -1,4 +1,5 @@
 from calculations.models import ParameterGroup, ParameterOption, Parameter
+from django.contrib.auth.models import Group
 
 r0 = {
     'Доля работников, занятых на подземных работах, имеющих профильное горное высшее и среднее профессиональное образование:': 
@@ -901,9 +902,8 @@ r8 = {
 }
 
 def populate_database():
-    #ParameterOption.objects.all().delete()
-    #Parameter.objects.all().delete()
-    #ParameterGroup.objects.all().delete()
+    Group.objects.get_or_create(name='employee')
+    Group.objects.get_or_create(name='boss')
 
     group_data = [
         ('r0', "Факторы, влияющие на опасности (риски) аварий, и индексы опасности аварий, обусловленные влиянием субъективного (человеческого) фактора"),

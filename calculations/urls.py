@@ -10,4 +10,5 @@ urlpatterns = [
     path('rX/<int:calc_id>/<str:group_code>/', views.rX_view, name='rX'),
     path('calc/<int:pk>/', views.calc_details_view, name='calc_details'),
     path("save_param_value/", views.save_param_value, name="save_param_value"),
+    path('calc_answers/<int:pk>/', views.calc_answers_view, name='calc_answers'),
 ]
