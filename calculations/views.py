@@ -7,6 +7,7 @@ from django.db.models import Q, Prefetch, F, Sum, Max
 from django.db import transaction
 from django.http import JsonResponse
 from datetime import datetime
+from collections import defaultdict
 import json
 
 # Create your views here.
@@ -67,6 +68,22 @@ def company_view(request):
     return render(request, 'calculations/newcalc.html')
 
 
+@login_required(login_url="/users/login/")
+def fill_by_inn(request, inn):
+    try:
+        calc = Calculation.objects.filter(organisation_INN=inn).latest("created")
+        data = {
+            "found": True,
+            "inn": calc.organisation_INN,
+            "kpp": calc.organisation_KPP,
+            "ogrn": calc.organisation_OGRN,
+            "name": calc.organisation_name,
+            "address": calc.organisation_address,
+        }
+    except Calculation.DoesNotExist:
+        data = {"found": False}
+    return JsonResponse(data)
+
 PARAMETER_CODES = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8']
 
 @login_required(login_url="/users/login/")
@@ -84,7 +101,6 @@ def rX_view(request, calc_id, group_code):
                 parameter=p,
                 defaults={
                     "value_before": "",
-                    "value_after": "",
                     "actions_description": ""
                 }
             )
@@ -99,8 +115,19 @@ def rX_view(request, calc_id, group_code):
         )
     }
 
+    parent_param_data_dict = {}
+    if calculation.parent:
+        parent_param_data_dict = {
+            pd.parameter_id: pd
+            for pd in CalculationParameterData.objects.filter(
+                calculation=calculation.parent,
+                parameter__in=parameters
+            )
+        }
+
     for p in parameters:
         p.data = param_data_dict.get(p.id)
+        p.parent_data = parent_param_data_dict.get(p.id)
     
     next_code = None
     current_index = PARAMETER_CODES.index(group_code)
@@ -109,7 +136,6 @@ def rX_view(request, calc_id, group_code):
     if request.method == "POST":
         for param in parameters:
             value_before = request.POST.get(f"before_{param.id}", "")
-            value_after = request.POST.get(f"after_{param.id}", "")
             actions_description = request.POST.get(f"actions_{param.id}", "")
 
             CalculationParameterData.objects.filter(
@@ -117,7 +143,6 @@ def rX_view(request, calc_id, group_code):
                 parameter=param
             ).update(
                 value_before=value_before,
-                value_after=value_after,
                 actions_description=actions_description
             )
 
@@ -291,15 +316,15 @@ def calc_details_view(request, pk):
         parameter_groups = ParameterGroup.objects.all().order_by('code')
         
         total_before_sum = 0
-        total_after_sum = 0
         total_max_sum = 0
         
         max_group_before_percentage = 0
-        max_group_after_percentage = 0
         
         r0_results = None
 
         for group in parameter_groups:
+            difference = 0
+            conclusion = "Не оценивается"
             group_data = CalculationParameterData.objects.filter(
                 calculation=calculation,
                 parameter__group=group
@@ -335,27 +360,17 @@ def calc_details_view(request, pk):
                     r4_coefficients_zero = True
 
             group_before_sum = 0
-            group_after_sum = 0
             group_max_sum = 0
 
             if (group.code in ['r1', 'r2', 'r3', 'r5', 'r8'] and first_param_coefficient == 0) or r4_coefficients_zero:
                 before_percentage = 0.0
                 after_percentage = 0.0
                 before_linguistic_level = 'Не оценивается'
-                after_linguistic_level = 'Не оценивается'
-                difference = 0.0
-                conclusion = 'Не оценивается'
             else:
                 for data in group_data:
                     try:
                         option_before = ParameterOption.objects.get(parameter=data.parameter, text=data.value_before)
                         group_before_sum += option_before.coefficient
-                    except ParameterOption.DoesNotExist:
-                        pass
-
-                    try:
-                        option_after = ParameterOption.objects.get(parameter=data.parameter, text=data.value_after)
-                        group_after_sum += option_after.coefficient
                     except ParameterOption.DoesNotExist:
                         pass
 
@@ -366,26 +381,20 @@ def calc_details_view(request, pk):
                 group_max_sum = sum(group_max_sum_list)
 
                 r0_before_sum = 0 if r0_results is None else r0_results.before_sum
-                r0_after_sum = 0 if r0_results is None else r0_results.after_sum
                 r0_max_sum = 0 if r0_results is None else r0_results.max_sum
-
                 before_percentage = ((group_before_sum + r0_before_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
-                after_percentage = ((group_after_sum + r0_after_sum) / (group_max_sum + r0_max_sum)) * 100 if group_max_sum > 0 else 0.0
-
                 before_linguistic_level = get_linguistic_level(before_percentage)
-                after_linguistic_level = get_linguistic_level(after_percentage)
-
-                difference = after_percentage - before_percentage
-                conclusion = get_conclusion(before_percentage, after_percentage, group.code)
+                
+                if calculation.parent:
+                    difference = before_percentage - CalculationResult.objects.get(calculation=calculation.parent, group=group).before_percentage
+                    conclusion = get_conclusion(CalculationResult.objects.get(calculation=calculation.parent, group=group).before_percentage, before_percentage, group.code)
 
             total_before_sum += group_before_sum
-            total_after_sum += group_after_sum
             total_max_sum += group_max_sum
 
             if before_percentage > max_group_before_percentage:
                 max_group_before_percentage = before_percentage
-            if after_percentage > max_group_after_percentage:
-                max_group_after_percentage = after_percentage
+            
 
             res = CalculationResult.objects.create(
                 calculation=calculation,
@@ -393,12 +402,9 @@ def calc_details_view(request, pk):
                 before_sum=group_before_sum,
                 before_percentage=before_percentage,
                 before_linguistic_level=before_linguistic_level,
-                after_sum=group_after_sum,
-                after_percentage=after_percentage,
-                after_linguistic_level=after_linguistic_level,
                 max_sum=group_max_sum,
-                difference=difference,
-                conclusion=conclusion
+                difference = difference,
+                conclusion = conclusion,
             )
 
             if group.code == 'r0':
@@ -408,31 +414,49 @@ def calc_details_view(request, pk):
 
     total_max_sum = sum(r.max_sum for r in results)
     total_before_sum = sum(r.before_sum for r in results)
-    total_after_sum = sum(r.after_sum for r in results)
-
     total_before_percentage = (total_before_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
-    total_after_percentage = (total_after_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
-
     max_group_before_percentage = max(r.before_percentage for r in results)
-    max_group_after_percentage = max(r.after_percentage for r in results)
 
+    total_after_sum = 0
+    total_after_percentage = 0
+    max_group_after_percentage = 0
+    after_results = []
+    if calculation.parent:
+        after_results = CalculationResult.objects.filter(calculation=calculation.parent).order_by('group__code')
+        total_after_sum = sum(r.before_sum for r in after_results)
+        total_after_percentage = (total_after_sum / total_max_sum) * 100 if total_max_sum > 0 else 0.0
+        max_group_after_percentage = max(r.before_percentage for r in after_results)
+
+    user = request.user
+    qs = Calculation.objects.filter(parent=calculation)() if user.groups.filter(name="boss").exists() else Calculation.objects.filter(user=user, parent=calculation)
+    headers = {
+        "user": "Пользователь",
+        "created": "Дата создания",
+        "organisation_INN": "ИНН",
+        "organisation_name": "Наименование",
+        "is_complete": "Статус",
+    }
+        
     context = {
         'calculation': calculation,
         'results': results,
+        'after_results': after_results,
         'total_before_percentage': total_before_percentage,
         'total_after_percentage': total_after_percentage,
         'total_before_linguistic_level': get_linguistic_level(total_before_percentage),
         'total_after_linguistic_level': get_linguistic_level(total_after_percentage),
-        'total_difference': total_after_percentage - total_before_percentage,
-        'total_conclusion': get_conclusion(total_before_percentage, total_after_percentage, 'R'),
+        'total_difference': total_before_percentage - total_after_percentage,
+        'total_conclusion': get_conclusion(total_after_percentage, total_before_percentage, 'R'),
         'max_before_percentage': max_group_before_percentage,
         'max_after_percentage': max_group_after_percentage,
         'max_before_linguistic_level': get_linguistic_level(max_group_before_percentage),
         'max_after_linguistic_level': get_linguistic_level(max_group_after_percentage),
-        'max_difference': max_group_after_percentage - max_group_before_percentage,
-        'max_conclusion': get_conclusion(max_group_before_percentage, max_group_after_percentage, 'R'),
+        'max_difference': max_group_before_percentage - max_group_after_percentage,
+        'max_conclusion': get_conclusion(max_group_after_percentage, max_group_before_percentage, 'R'),
         'recomendations_before': recomendations[get_linguistic_level(max_group_before_percentage)],
-        'recomendations_after': recomendations[get_linguistic_level(max_group_after_percentage)]
+        'recomendations_after': recomendations[get_linguistic_level(max_group_after_percentage)],
+        "calculations": qs,
+        "headers": headers,
     }
 
     if request.method == "POST":
@@ -468,8 +492,6 @@ def calc_answers_view(request, pk):
 
     groups = list(ParameterGroup.objects.filter(code__in=PARAMETER_CODES).order_by('code'))
 
-    from collections import defaultdict
-
     grouped_data = defaultdict(list)
     for pdata in calculation.parameter_data.all():
         grouped_data[pdata.parameter.group_id].append(pdata)
@@ -483,3 +505,32 @@ def calc_answers_view(request, pk):
         'calculation': calculation,
         'groups_with_data': groups_with_data
     })
+
+
+
+@login_required(login_url="/users/login/")
+def create_related_calculation(request, pk):
+    calc = get_object_or_404(Calculation, pk=pk, user=request.user)
+
+    if request.method == "POST":
+        new_calc = Calculation.objects.create(
+            user=request.user,
+            parent=calc,
+            organisation_INN=calc.organisation_INN,
+            organisation_KPP=calc.organisation_KPP,
+            organisation_OGRN=calc.organisation_OGRN,
+            organisation_name=calc.organisation_name,
+            organisation_address=calc.organisation_address,
+        )
+
+        for param_data in CalculationParameterData.objects.filter(calculation=calc):
+            CalculationParameterData.objects.create(
+                calculation=new_calc,
+                parameter=param_data.parameter,
+                value_before=param_data.value_before,
+                actions_description=""
+            )
+
+        return redirect("calculations:calc_details", pk=new_calc.pk)
+
+    return redirect("calculations:calc_details", pk=pk)

@@ -18,7 +18,7 @@
     </div>
 
     <div class="results-table-wrapper first-table-wrapper">
-        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии до принятия компенсирующих мер</h3>
+        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии</h3>
         <table class="results-table">
             <thead>
                 <tr>
@@ -74,8 +74,9 @@
         </table>
     </div>
 
-    <div class="results-table-wrapper">
-        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии после применения компенсирующих мер</h3>
+    {% if calculation.parent %}
+    <div class="results-table-wrapper print-button" id="base_report">
+        <h3 class="results-subheader">Сведения об опасностях и уровни риска аварии в родительском расчете</h3>
         <table class="results-table">
             <thead>
                 <tr>
@@ -88,14 +89,14 @@
                 </tr>
             </thead>
             <tbody>
-                {% for result in results %}
+                {% for result in after_results %}
                 <tr>
                     <td>{{ result.group.name }}</td>
-                    <td>{{ result.group.code }}</td>
+                    <td class="results-text-center">{{ result.group.code }}</td>
                     <td class="results-text-center">{{ result.max_sum|floatformat:2 }}</td>
-                    <td class="results-text-center">{{ result.after_sum|floatformat:2 }}</td>
-                    <td class="results-text-center">{{ result.after_percentage|floatformat:2 }}</td>
-                    <td>{{ result.after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ result.before_sum|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ result.before_percentage|floatformat:2 }}</td>
+                    <td>{{ result.before_linguistic_level }}</td>
                 </tr>
                 {% endfor %}
                 <tr class="results-total-row">
@@ -114,7 +115,7 @@
                 </tr>
                 <tr class="results-footer-note">
                     <td colspan="6">
-                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: <strong>{{ max_after_linguistic_level }}</strong>
+                        Согласно шестиуровневой лингвистической шкале (таблица 10 приложения №1 "Методических рекомендаций по проведению анализа опасностей и оценки риска аварий на угольных шахтах") определен: <strong>{{ max_before_linguistic_level }}</strong>
                     </td>
                 </tr>
                 <tr class="results-footer-note">
@@ -124,14 +125,14 @@
                 </tr>
                 <tr class="results-total-row">
                     <td colspan="6">
-                        {{ recomendations_after }}
+                        {{ recomendations_before }}
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div class="results-table-wrapper">
+    <div class="results-table-wrapper print-button" id="compare_reports">
         <h3 class="results-subheader">Сравнительная характеристика опасностей и уровня риска аварий до и после применения компенсирующих мероприятий</h3>
         <table class="results-table">
             <thead>
@@ -149,8 +150,8 @@
                 <tr>
                     <td>{{ result.group.name }}</td>
                     <td>{{ result.group.code }}</td>
-                    <td class="results-text-center">{{ result.after_percentage|floatformat:2 }}</td>
-                    <td>{{ result.after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ result.before_percentage|floatformat:2 }}</td>
+                    <td>{{ result.before_linguistic_level }}</td>
                     <td class="results-text-center">{{ result.difference|floatformat:2 }}</td>
                     <td class="
                         {% if result.conclusion == 'Уровень риска уменьшился, уровень безопасности увеличился' %}results-conclusion-positive
@@ -162,14 +163,14 @@
                 {% endfor %}
                 <tr class="results-total-row">
                     <td colspan="2">Интегральный показатель опасности (риска)</td>
-                    <td class="results-text-center">{{ total_after_percentage|floatformat:2 }}</td>
-                    <td>{{ total_after_linguistic_level }}</td>
+                    <td class="results-text-center">{{ total_before_percentage|floatformat:2 }}</td>
+                    <td>{{ total_before_linguistic_level }}</td>
                     <td class="results-text-center">{{ total_difference|floatformat:2 }}</td>
                     <td>{{ total_conclusion }}</td>
                 </tr>
                 <tr class="results-total-row">
                     <td colspan="2">Показатель опасности (риска) аварий на шахте</td>
-                    <td class="results-text-center">{{ max_after_percentage|floatformat:2 }}</td>
+                    <td class="results-text-center">{{ max_before_percentage|floatformat:2 }}</td>
                     <td>{{ max_after_linguistic_level }}</td>
                     <td class="results-text-center">{{ max_difference|floatformat:2 }}</td>
                     <td>{{ max_conclusion }}</td>
@@ -177,6 +178,7 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 
     <div class="buttons-container">
         <form method="post" id="rx-form">
@@ -184,10 +186,108 @@
             <button type="button" id="finish-btn" class="print-button btn-confirm">Удалить</button>
         </form>
         
-        <div class="param-actions">
+        <div class="param-actions-centered">
             <a href="{% url 'calculations:calc_answers' pk=calculation.id %}" class="btn-prev print-button">Подробности</a>
-            <button type="button" onclick="window.print()" class="print-button btn-next">Печать</button>
         </div>  
+
+        <form method="post" action="{% url 'calculations:create_related' calculation.id %}">
+            {% csrf_token %}
+            <button type="submit" class="print-button btn-secondary">Создать связанный перерасчёт</button>
+        </form>
+    </div>
+
+    <div class="form-group print-button">
+        <h3 class="results-subheader">Печать</h3>
+        <label>
+            <input type="checkbox" id="checkbox1" onchange="toggleClass('base_report', 'checkbox1')">
+            Включить данные базового отчета в печать
+        </label>
+        <br>
+        <label>
+            <input type="checkbox" id="checkbox2" onchange="toggleClass('compare_reports', 'checkbox2')">
+            Включить сравнительную таблицу в печать
+        </label>
+        <br>
+        <button type="button" onclick="window.print()" class="print-button btn-next">Печать</button>
+        <br>
+    </div>
+
+    {% if calculation.parent %}
+    <h3 class="results-subheader print-button">Базовый расчет</h3>
+    <div class="calc-log print-button">
+        <table class="calc-table">
+            <thead>
+            <tr>
+                {% for field, label in headers.items %}
+                <th>
+                    {{ label }}
+                </th>
+                {% endfor %}
+            </tr>
+            </thead>
+            <tbody>
+                <tr class="clickable-row" data-href="{% url 'calculations:calc_details' calculation.parent.id %}">
+                    <td>
+                        {% if calculation.parent.user.first_name or calculation.parent.user.last_name %}
+                        {{ calculation.parent.user.first_name }} {{ calculation.parent.user.last_name }}
+                        {% else %}
+                        {{ calculation.parent.user.username }}
+                        {% endif %}
+                    </td>
+                    <td>{{ calculation.parent.created|date:"d.m.Y H:i" }}</td>
+                    <td>{{ calculation.parent.organisation_INN }}</td>
+                    <td>{{ calculation.parent.organisation_name }}</td>
+                    <td>
+                        {% if calculation.parent.is_complete %}
+                        <span class="status complete">Завершён</span>
+                        {% else %}
+                        <span class="status in-progress">Не завершён</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <h3 class="results-subheader print-button">Перерасчёты на основе этого расчета</h3>
+    <div class="calc-log print-button">
+        <table class="calc-table">
+            <thead>
+            <tr>
+                {% for field, label in headers.items %}
+                <th>
+                    {{ label }}
+                </th>
+                {% endfor %}
+            </tr>
+            </thead>
+            <tbody>
+                {% for entry in calculations %}
+                    <tr class="clickable-row" data-href="{% url 'calculations:calc_details' entry.id %}">
+                        <td>
+                            {% if entry.user.first_name or entry.user.last_name %}
+                            {{ entry.user.first_name }} {{ entry.user.last_name }}
+                            {% else %}
+                            {{ entry.user.username }}
+                            {% endif %}
+                        </td>
+                        <td>{{ entry.created|date:"d.m.Y H:i" }}</td>
+                        <td>{{ entry.organisation_INN }}</td>
+                        <td>{{ entry.organisation_name }}</td>
+                        <td>
+                            {% if entry.is_complete %}
+                            <span class="status complete">Завершён</span>
+                            {% else %}
+                            <span class="status in-progress">Не завершён</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align:center;">Связанных перерасчётов не найдено</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
 

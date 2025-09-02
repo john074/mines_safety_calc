@@ -377,6 +377,14 @@ main {
     resize: vertical;
 }
 
+.param-actions-centered {
+    position: absolute; 
+    left: 50%;
+    transform: translateX(-50%); 
+    display: flex;
+    gap: 10px;
+}
+
 .param-actions {
     text-align: right;
     margin-top: 20px; 
@@ -591,6 +599,15 @@ main {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+}
+
+.buttons-container form:first-child {
+    margin-right: auto;
+}
+
+.buttons-container form:last-child {
+    margin-left: auto;
 }
 
 #rx-form {

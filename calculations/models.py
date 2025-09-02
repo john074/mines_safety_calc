@@ -14,6 +14,14 @@ class Calculation(models.Model):
     organisation_name = models.CharField(max_length=300)
     organisation_address = models.CharField(max_length=300)
 
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="children"
+    )
+
 
 class ParameterGroup(models.Model):
     code = models.CharField(max_length=10, unique=True)
@@ -37,7 +45,6 @@ class CalculationParameterData(models.Model):
     parameter = models.ForeignKey(Parameter, on_delete=models.CASCADE)
     
     value_before = models.CharField(max_length=300)
-    value_after = models.CharField(max_length=300)
     actions_description = models.TextField(blank=True)
 
     class Meta:
@@ -58,10 +65,6 @@ class CalculationResult(models.Model):
     before_sum = models.FloatField(default=0.0)
     before_percentage = models.FloatField(default=0.0)
     before_linguistic_level = models.CharField(max_length=50, default='Не оценивается')
-
-    after_sum = models.FloatField(default=0.0)
-    after_percentage = models.FloatField(default=0.0)
-    after_linguistic_level = models.CharField(max_length=50, default='Не оценивается')
 
     max_sum = models.FloatField(default=0.0)
 

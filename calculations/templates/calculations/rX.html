@@ -22,18 +22,11 @@
                         </option>
                     {% endfor %}
                 </select>
-
-                <label class="param-label">Описание компенсирующих мероприятий</label>
-                <textarea name="actions_{{ param.id }}" class="param-textarea" data-param-id="{{ param.id }}" data-field-type="actions_description">{{ param.data.actions_description }}</textarea>
-
-                <label class="param-label">Значение критерия после применения компенсирующих мероприятий</label>
-                <select name="after_{{ param.id }}" class="param-select" data-param-id="{{ param.id }}" data-field-type="value_after">
-                    {% for opt in param.options.all %}
-                        <option value="{{ opt.text }}" {% if param.data and param.data.value_after == opt.text %}selected{% endif %}>
-                            {{ opt.text }}
-                        </option>
-                    {% endfor %}
-                </select>
+                
+                {% if calculation.parent %}
+                    <label class="param-label">Описание компенсирующих мероприятий</label>
+                    <textarea name="actions_{{ param.id }}" class="param-textarea" data-param-id="{{ param.id }}" data-field-type="actions_description">{{ param.data.actions_description }}</textarea>
+                {% endif %}
             </div>
         {% endfor %}
 

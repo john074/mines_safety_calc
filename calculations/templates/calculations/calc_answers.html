@@ -12,9 +12,10 @@
                 <tr>
                     <th>№</th>
                     <th>Параметр</th>
-                    <th>До</th>
+                    <th>Значение</th>
+                    {% if calculation.parent %}
                     <th>Компенсирующие мероприятия</th>
-                    <th>После</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -24,8 +25,9 @@
                             <td>{{ forloop.counter }}</td>
                             <td>{{ pdata.parameter.text }}</td>
                             <td>{{ pdata.value_before }}</td>
+                            {% if calculation.parent %}
                             <td>{{ pdata.actions_description|default:"—" }}</td>
-                            <td>{{ pdata.value_after }}</td>
+                            {% endif %}
                         </tr>
                     {% endfor %}
                 {% else %}

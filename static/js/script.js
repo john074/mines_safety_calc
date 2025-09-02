@@ -77,3 +77,38 @@ document.addEventListener("DOMContentLoaded", function() {
         form.submit();
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const innInput = document.getElementById("inn");
+
+    innInput.addEventListener("input", function () {
+        const inn = innInput.value.trim();
+
+        if (/^\d{10}$|^\d{12}$/.test(inn)) {
+            fetch(`/calculations/fill_by_inn/${inn}/`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.found) {
+                    document.getElementById("name").value = data.name || "";
+                    document.getElementById("kpp").value = data.kpp || "";
+                    document.getElementById("ogrn").value = data.ogrn || "";
+                    document.getElementById("address").value = data.address || "";
+                }
+            })
+            .catch(err => console.error("Ошибка загрузки данных:", err));
+        }
+    });
+});
+
+function toggleClass(target_id, self_id) {
+    const element = document.getElementById(target_id);
+    const checkbox = document.getElementById(self_id);
+    
+    if (checkbox.checked) {
+        element.classList.remove("print-button");
+    } else {
+        element.classList.add("print-button");
+    }
+}
