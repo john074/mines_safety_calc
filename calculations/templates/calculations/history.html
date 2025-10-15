@@ -1,7 +1,7 @@
 {% extends 'layout.html' %}
 
 {% block title %}
-    Журнал рассчетов
+    Журнал расчетов
 {% endblock %}
 
 {% block content %}
@@ -9,8 +9,8 @@
 
 <form method="get" class="search-form">
   <select name="filter_by">
-    <option value="organisation_INN" {% if request.GET.filter_by == "organisation_INN" %}selected{% endif %}>ИНН</option>
-    <option value="organisation_name" {% if request.GET.filter_by == "organisation_name" %}selected{% endif %}>Наименование</option>
+    <option value="organisation__INN" {% if request.GET.filter_by == "organisation__INN" %}selected{% endif %}>ИНН</option>
+    <option value="organisation__name" {% if request.GET.filter_by == "organisation__name" %}selected{% endif %}>Наименование</option>
     <option value="user" {% if request.GET.filter_by == "user" %}selected{% endif %}>Пользователь</option>
   </select>
 
@@ -55,8 +55,8 @@
                     {% endif %}
                 </td>
                 <td>{{ entry.created|date:"d.m.Y H:i" }}</td>
-                <td>{{ entry.organisation_INN }}</td>
-                <td>{{ entry.organisation_name }}</td>
+                <td>{{ entry.organisation.INN }}</td>
+                <td>{{ entry.organisation.name }}</td>
                 <td>
                     {% if entry.is_complete %}
                     <span class="status complete">Завершён</span>
@@ -65,14 +65,10 @@
                     {% endif %}
                 </td>
             </tr>
-            {% empty %}
+        {% empty %}
             <tr><td colspan="5" style="text-align:center;">Нет доступных расчётов</td></tr>
         {% endfor %}
     </tbody>
   </table>
 </div>
 {% endblock %}
-
-
-
-

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .helpers.get_data_by_inn import get_data
-from .models import Calculation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData, CalculationResult
+from .models import Calculation, Organisation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData, CalculationResult
 from django.db.models import Q, Prefetch, F, Sum, Max
 from django.db import transaction
 from django.http import JsonResponse
@@ -53,13 +53,19 @@ def company_view(request):
                 messages.error(request, "Некорректный формат ОГРН.")
                 return render(request, 'calculations/newcalc.html', {'data': data})
 
+            organisation, _ = Organisation.objects.get_or_create(
+                INN=data["inn"],
+                defaults={
+                    "KPP": data["kpp"],
+                    "OGRN": data["ogrn"],
+                    "name": data["name"],
+                    "address": data["address"],
+                }
+            )
+            
             new_calculation = Calculation(
-                user = request.user,
-                organisation_INN = data["inn"],
-                organisation_KPP = data["kpp"],
-                organisation_OGRN = data["ogrn"],
-                organisation_name = data["name"],
-                organisation_address = data["address"],
+                user=request.user,
+                organisation=organisation
             )
             new_calculation.save()
             
@@ -71,14 +77,15 @@ def company_view(request):
 @login_required(login_url="/users/login/")
 def fill_by_inn(request, inn):
     try:
-        calc = Calculation.objects.filter(organisation_INN=inn).latest("created")
+        calc = Calculation.objects.select_related("organisation").filter(organisation__INN=inn).latest("created")
+        org = calc.organisation
         data = {
             "found": True,
-            "inn": calc.organisation_INN,
-            "kpp": calc.organisation_KPP,
-            "ogrn": calc.organisation_OGRN,
-            "name": calc.organisation_name,
-            "address": calc.organisation_address,
+            "inn": org.INN,
+            "kpp": org.KPP,
+            "ogrn": org.OGRN,
+            "name": org.name,
+            "address": org.address,
         }
     except Calculation.DoesNotExist:
         data = {"found": False}
@@ -180,16 +187,16 @@ def history_view(request):
 
     if filter_by and query:
         if filter_by == "organisation_INN":
-            qs = qs.filter(organisation_INN__icontains=query)
+            qs = qs.filter(organisation__INN__icontains=query)
         elif filter_by == "organisation_name":
-            qs = qs.filter(organisation_name__icontains=query)
+            qs = qs.filter(organisation__name__icontains=query)
         elif filter_by == "user":
             qs = qs.filter(
                 Q(user__first_name__icontains=query) |
                 Q(user__last_name__icontains=query) |
                 Q(user__username__icontains=query)
             )
-
+            
     if created_from:
         try:
             created_from_date = datetime.strptime(created_from, "%Y-%m-%d")
@@ -205,8 +212,8 @@ def history_view(request):
 
     allowed_sort_fields = {
         "user", "-user", "created", "-created",
-        "organisation_INN", "-organisation_INN",
-        "organisation_name", "-organisation_name",
+        "organisation__INN", "-organisation__INN",
+        "organisation__name", "-organisation__name",
         "is_complete", "-is_complete"
     }
     if sort_param not in allowed_sort_fields:
@@ -217,8 +224,8 @@ def history_view(request):
     headers = {
         "user": "Пользователь",
         "created": "Дата создания",
-        "organisation_INN": "ИНН",
-        "organisation_name": "Наименование",
+        "organisation__INN": "ИНН",
+        "organisation__name": "Наименование",
         "is_complete": "Статус",
     }
 
@@ -516,11 +523,7 @@ def create_related_calculation(request, pk):
         new_calc = Calculation.objects.create(
             user=request.user,
             parent=calc,
-            organisation_INN=calc.organisation_INN,
-            organisation_KPP=calc.organisation_KPP,
-            organisation_OGRN=calc.organisation_OGRN,
-            organisation_name=calc.organisation_name,
-            organisation_address=calc.organisation_address,
+            organisation=calc.organisation
         )
 
         for param_data in CalculationParameterData.objects.filter(calculation=calc):

@@ -2,17 +2,32 @@ from django.conf import settings
 from django.db import models
 
 # Create your models here.
+class Organisation(models.Model):
+    INN = models.CharField(max_length=12, verbose_name="ИНН")
+    KPP = models.CharField(max_length=9, verbose_name="КПП")
+    OGRN = models.CharField(max_length=13, verbose_name="ОГРН")
+    name = models.CharField(max_length=300, verbose_name="Наименование организации")
+    address = models.CharField(max_length=300, verbose_name="Адрес")
+
+    class Meta:
+        verbose_name = "Организация"
+        verbose_name_plural = "Организации"
+
+
 class Calculation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_complete = models.BooleanField(default=False)
 
-    organisation_INN = models.CharField(max_length=12)
-    organisation_KPP = models.CharField(max_length=9)
-    organisation_OGRN = models.CharField(max_length=13)
-    organisation_name = models.CharField(max_length=300)
-    organisation_address = models.CharField(max_length=300)
+    organisation = models.ForeignKey(
+        Organisation,
+        on_delete=models.CASCADE,
+        related_name="calculations",
+        verbose_name="Организация",
+        null=True,
+        blank=True
+    )
 
     parent = models.ForeignKey(
         "self",
@@ -21,6 +36,10 @@ class Calculation(models.Model):
         on_delete=models.SET_NULL,
         related_name="children"
     )
+
+    class Meta:
+        verbose_name = "Расчёт"
+        verbose_name_plural = "Расчёты"
 
 
 class ParameterGroup(models.Model):

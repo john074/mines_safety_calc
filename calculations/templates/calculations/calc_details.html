@@ -6,14 +6,14 @@
 
 {% block content %}
 <div class="results-container">
-    <h2 class="results-header">Результаты расчета для «{{ calculation.organisation_name }}»</h2>
+    <h2 class="results-header">Результаты расчета для «{{ calculation.organisation.name }}»</h2>
     
    <div class="results-org-info">
         <p>
-            ИНН: {{ calculation.organisation_INN }}<br>
-            КПП: {{ calculation.organisation_KPP }}<br>
-            ОГРН: {{ calculation.organisation_OGRN }}<br>
-            Юр. Адрес: {{ calculation.organisation_address }}<br>
+            ИНН: {{ calculation.organisation.INN }}<br>
+            КПП: {{ calculation.organisation.KPP }}<br>
+            ОГРН: {{ calculation.organisation.OGRN }}<br>
+            Юр. Адрес: {{ calculation.organisation.address }}<br>
         </p>
     </div>
 
@@ -235,8 +235,8 @@
                         {% endif %}
                     </td>
                     <td>{{ calculation.parent.created|date:"d.m.Y H:i" }}</td>
-                    <td>{{ calculation.parent.organisation_INN }}</td>
-                    <td>{{ calculation.parent.organisation_name }}</td>
+                    <td>{{ calculation.parent.organisation.INN }}</td>
+                    <td>{{ calculation.parent.organisation.name }}</td>
                     <td>
                         {% if calculation.parent.is_complete %}
                         <span class="status complete">Завершён</span>
@@ -273,8 +273,8 @@
                             {% endif %}
                         </td>
                         <td>{{ entry.created|date:"d.m.Y H:i" }}</td>
-                        <td>{{ entry.organisation_INN }}</td>
-                        <td>{{ entry.organisation_name }}</td>
+                        <td>{{ entry.organisation.INN }}</td>
+                        <td>{{ entry.organisation.name }}</td>
                         <td>
                             {% if entry.is_complete %}
                             <span class="status complete">Завершён</span>
