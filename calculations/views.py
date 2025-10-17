@@ -95,6 +95,11 @@ PARAMETER_CODES = ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8']
 
 @login_required(login_url="/users/login/")
 def rX_view(request, calc_id, group_code):
+    if request.user.groups.filter(name="boss").exists():
+        calc = Calculation.objects.get(id=calc_id)
+        if calc and calc.user != request.user and not calc.is_complete:
+            return redirect('calculations:not_finished')
+            
     calculation = get_object_or_404(Calculation, id=calc_id, user=request.user)
     if (calculation.is_complete):
         return redirect('calculations:history')
@@ -311,7 +316,7 @@ def get_conclusion(before_percentage, after_percentage, group_code):
 @login_required(login_url="/users/login/")
 def calc_details_view(request, pk):
     calculation = get_object_or_404(Calculation, pk=pk)
-    if request.user != calculation.user and not user.groups.filter(name="boss").exists():
+    if request.user != calculation.user and not request.user.groups.filter(name="boss").exists():
         return redirect('calculations:history')
 
     if not calculation.is_complete:
@@ -435,7 +440,7 @@ def calc_details_view(request, pk):
         max_group_after_percentage = max(r.before_percentage for r in after_results)
 
     user = request.user
-    qs = Calculation.objects.filter(parent=calculation)() if user.groups.filter(name="boss").exists() else Calculation.objects.filter(user=user, parent=calculation)
+    qs = Calculation.objects.filter(parent=calculation) if user.groups.filter(name="boss").exists() else Calculation.objects.filter(user=user, parent=calculation)
     headers = {
         "user": "Пользователь",
         "created": "Дата создания",
@@ -517,7 +522,7 @@ def calc_answers_view(request, pk):
 
 @login_required(login_url="/users/login/")
 def create_related_calculation(request, pk):
-    calc = get_object_or_404(Calculation, pk=pk, user=request.user)
+    calc = get_object_or_404(Calculation, pk=pk, user=request.user) if not request.user.groups.filter(name="boss").exists() else get_object_or_404(Calculation, pk=pk)
 
     if request.method == "POST":
         new_calc = Calculation.objects.create(
@@ -537,3 +542,8 @@ def create_related_calculation(request, pk):
         return redirect("calculations:calc_details", pk=new_calc.pk)
 
     return redirect("calculations:calc_details", pk=pk)
+
+
+@login_required(login_url="/users/login/")
+def not_finished(request):
+    return render(request, 'calculations/not_finished.html')

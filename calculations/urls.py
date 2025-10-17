@@ -13,4 +13,5 @@ urlpatterns = [
     path('calc_answers/<int:pk>/', views.calc_answers_view, name='calc_answers'),
     path("fill_by_inn/<str:inn>/", views.fill_by_inn, name="fill_by_inn"),
     path('<int:pk>/create-related/', views.create_related_calculation, name='create_related'),
+    path('not_finished/', views.not_finished, name='not_finished'),
 ]
