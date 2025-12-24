@@ -1,58 +1,96 @@
 import requests
-import time
-import os
-from . import parse_data_from_pdf
+import gzip
+import json
 
-def get_data(INN, attempts_count=0):
-    HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://egrul.nalog.ru/",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
+def get_data(INN):
+    url = f"https://egrul.itsoft.ru/{INN}.json.gz"
+
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+
+    try:
+        raw = gzip.decompress(response.content)
+        data = json.loads(raw)
+    except gzip.BadGzipFile:
+        data = response.json()
+
+    return parse_egrul_json(data)
+
+
+def parse_egrul_json(data):
+    result = {
+        "name": None,
+        "ogrn": None,
+        "kpp": None,
+        "address": None,
     }
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    # get cookies
-    session.get("https://egrul.nalog.ru")
 
-    # send INN
-    response = session.post(
-        "https://egrul.nalog.ru", 
-        data={"query": INN, "captcha": "", "captchaToken": ""}
-    )
-    #print(response)
-    search_token = response.json()["t"]
-    # get org data
-    org_data = session.get(f"https://egrul.nalog.ru/search-result/{search_token}").json()
-    if len(org_data["rows"]) > 0:
-        org_name = org_data["rows"][0]["n"]
-        download_token = org_data["rows"][0]["t"]
-        # make pdf
-        pdf_request_url = f"https://egrul.nalog.ru/vyp-request/{download_token}?r=1&_={int(time.time() * 1000)}"
-        pdf_response = session.get(pdf_request_url)
-        
-        # if not pdf make another request with new token
-        if pdf_response.headers.get("Content-Type") != "application/pdf":
-            new_token = pdf_response.json()["t"]
-            pdf_url = f"https://egrul.nalog.ru/vyp-download/{new_token}"
-            pdf_response = session.get(pdf_url)
-        # save
-        if pdf_response.headers.get("Content-Type") == "application/pdf":
-            with open(f"egrul_{INN}.pdf", "wb") as file:
-                file.write(pdf_response.content)
-                data = parse_data_from_pdf.parse_egrul_pdf(f"egrul_{INN}.pdf")
-                os.remove(f"egrul_{INN}.pdf")
-                return data
-            
-        else:
-            if attempts_count < 2:
-                time.sleep(0.5)
-                return get_data(INN, attempts_count + 1)
-            return "Ошибка получения данных, повторите запрос или попробуйте позже"
-    else:
-        return "Организация с указанным ИНН не найдена"
+    try:
+        ul = data["СвЮЛ"]
+        attrs = ul["@attributes"]
+        result["ogrn"] = attrs.get("ОГРН")
+        result["kpp"] = attrs.get("КПП")
+
+        result["name"] = (ul.get("СвНаимЮЛ", {}).get("@attributes", {}).get("НаимЮЛПолн"))
+        result["address"] = parse_address(ul)
+        print(result["address"])
+
+    except KeyError:
+        return "Ошибка структуры данных ЕГРЮЛ"
+
+    return result
 
 
-INN1 = "4205254853"
-INN2 = "7710137066"
-INN3 = "4207012578"
+def parse_address(svul):
+    # --- ФИАС формат ---
+    fias = svul.get("СвАдресЮЛ", {}).get("СвАдрЮЛФИАС")
+    if fias:
+        parts = []
+
+        region = fias.get("НаимРегион")
+        if region:
+            parts.append(region)
+
+        city = fias.get("НаселенПункт", {}).get("@attributes")
+        if city:
+            parts.append(f"{city.get('Вид', '')}. {city.get('Наим', '')}".strip())
+
+        street = fias.get("ЭлУлДорСети", {}).get("@attributes")
+        if street:
+            parts.append(f"{street.get('Тип', '')}. {street.get('Наим', '')}".strip())
+
+        building = fias.get("Здание", {}).get("@attributes")
+        if building:
+            parts.append(f"{building.get('Тип', '')} {building.get('Номер', '')}".strip())
+
+        room = fias.get("ПомещЗдания", {}).get("@attributes")
+        if room:
+            parts.append(f"{room.get('Тип', '')} {room.get('Номер', '')}".strip())
+
+        return ", ".join(parts) if parts else None
+
+    # --- Старый формат ---
+    addr = svul.get("СвАдресЮЛ", {}).get("АдресРФ")
+    if addr:
+        parts = []
+
+        region = addr.get("Регион", {}).get("@attributes", {}).get("НаимРегион")
+        if region:
+            parts.append(region)
+
+        city = addr.get("Город", {}).get("@attributes")
+        if city:
+            parts.append(f"{city.get('ТипГород', '')} {city.get('НаимГород', '')}".strip())
+
+        street = addr.get("Улица", {}).get("@attributes")
+        if street:
+            parts.append(f"{street.get('ТипУлица', '')} {street.get('НаимУлица', '')}".strip())
+
+        house = addr.get("@attributes", {}).get("Дом")
+        if house:
+            parts.append(house)
+
+        return ", ".join(parts) if parts else None
+
+    return None
 
