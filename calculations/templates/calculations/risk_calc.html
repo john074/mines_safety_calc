@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container container-pad">
+    <form method="post" id="rx-form" class="company-form">
+        {% csrf_token %}
+
+        <h1>Расчёт индивидуального риска</h1>
+
+        {% if error %}
+            <ul class="messages">
+                <li>{{ error }}</li>
+            </ul>
+        {% endif %}
+
+        <div class="search-form">
+            <label>
+                Год расчёта
+                <input type="text" name="year" required value="{{ year }}">
+            </label>
+
+            <label>
+                Отрасль
+                <select name="industry" required>
+                    {% for industry in industries %}
+                        <option value="{{ industry.id }}"
+                            {% if industry.id == industry_selected %}selected{% endif %}>
+                            {{ industry.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <button type="submit" name="action" value="search">
+                Найти данные
+            </button>
+        </div>
+
+        <div class="param-block">
+            <div class="param-title">
+                Количество погибших за последние 5 лет
+            </div>
+
+            {% for year, death_value in years_with_data %}
+                <label class="param-label">{{ year }} год</label>
+                <input type="text"
+                       name="deaths_{{ forloop.counter }}"
+                       class="param-select"
+                       value="{{ death_value }}">
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label>
+                Численность работников в отрасли в {{ year }} году
+                <input type="text"
+                       name="workers_in_industry"
+                       value="{{ workers_value }}">
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="short_shift"
+                       {% if short_shift %}checked{% endif %}>
+                Смены менее 2 часов
+            </label>
+        </div>
+
+        <div class="button-group">
+            <button type="submit" name="save" class="btn-primary" value="save">
+                Расчёт
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if need_confirm %}
+<div id="finish-modal" class="modal-overlay" style="display: flex;">
+{% else %}
+<div id="finish-modal" class="modal-overlay">
+{% endif %}
+    <div class="modal-window">
+        <h2>Подтверждение</h2>
+        <p>
+            Вы изменили ранее сохранённые данные.
+            Они будут перезаписаны. Продолжить?
+        </p>
+        <div class="modal-actions">
+            <button id="cancel-btn" class="btn-cancel">Отмена</button>
+            <button id="confirm-btn" class="btn-confirm">Подтвердить</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

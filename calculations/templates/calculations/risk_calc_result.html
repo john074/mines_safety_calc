@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="results-container">
+
+    <div class="results-header">
+        Величина пренебрежимо малого уровня индивидуального риска
+        травмирования в {{ calculation.year }} году составляет
+        <strong>{{ calculation.result }}</strong>
+    </div>
+
+    <div class="results-org-info">
+        <p><strong>Дата расчёта:</strong> {{ calculation.created|date:"d.m.Y" }}</p>
+        <p><strong>Расчёт выполнил:</strong> {% if calculation.user.first_name or calculation.user.last_name %}
+                {{ calculation.user.first_name }} {{ calculation.user.last_name }}
+            {% else %}
+                {{ calculation.user.username }}
+            {% endif %}</p>
+        <p class="print-footer"><strong>Подпись: _____________________</strong></p>
+    </div>
+
+    <div class="buttons-container">
+        <button onclick="window.print()" class="btn-secondary print-button">
+            Печать
+        </button>
+
+        {% if can_delete %}
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn-confirm print-button">
+                    Удалить
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

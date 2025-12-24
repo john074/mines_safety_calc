@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .helpers.get_data_by_inn import get_data
-from .models import Calculation, Organisation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData, CalculationResult
+from .models import Calculation, Organisation, ParameterGroup, Parameter, ParameterOption, CalculationParameterData, CalculationResult, Industry, DeathStatistic, RiskCalculation
 from django.db.models import Q, Prefetch, F, Sum, Max
 from django.db import transaction
 from django.http import JsonResponse
@@ -182,19 +182,56 @@ def rX_view(request, calc_id, group_code):
 @login_required(login_url="/users/login/")
 def history_view(request):
     user = request.user
+    calc_type = request.GET.get("calc_type", "main")
     sort_param = request.GET.get("sort", "-created")
     filter_by = request.GET.get("filter_by", "")
     query = request.GET.get("query", "").strip()
     created_from = request.GET.get("created_from")
     created_to = request.GET.get("created_to")
 
-    qs = Calculation.objects.all() if user.groups.filter(name="boss").exists() else Calculation.objects.filter(user=user)
+    if calc_type == "risk":
+        qs = RiskCalculation.objects.all() # if user.groups.filter(name="boss").exists() else RiskCalculation.objects.filter(user=user)
 
+        headers = {
+            "user": "Пользователь",
+            "created": "Дата создания",
+            "industry__name": "Отрасль",
+            "year": "Год расчёта",
+            "result": "Результат",
+        }
+
+        allowed_sort_fields = {
+            "user", "-user",
+            "created", "-created",
+            "industry__name", "-industry__name",
+            "year", "-year",
+            "result", "-result",
+        }
+    else:
+        qs = Calculation.objects.all() if user.groups.filter(name="boss").exists() else Calculation.objects.filter(user=user)
+        headers = {
+            "user": "Пользователь",
+            "created": "Дата создания",
+            "organisation__INN": "ИНН",
+            "organisation__name": "Наименование",
+            "is_complete": "Статус",
+        }
+
+        allowed_sort_fields = {
+            "user", "-user",
+            "created", "-created",
+            "organisation__INN", "-organisation__INN",
+            "organisation__name", "-organisation__name",
+            "is_complete", "-is_complete",
+        }
+        
     if filter_by and query:
         if filter_by == "organisation_INN":
             qs = qs.filter(organisation__INN__icontains=query)
         elif filter_by == "organisation_name":
             qs = qs.filter(organisation__name__icontains=query)
+        elif filter_by == "industry__name":
+            qs = qs.filter(industry__name__icontains=query)
         elif filter_by == "user":
             qs = qs.filter(
                 Q(user__first_name__icontains=query) |
@@ -215,29 +252,16 @@ def history_view(request):
         except ValueError:
             pass
 
-    allowed_sort_fields = {
-        "user", "-user", "created", "-created",
-        "organisation__INN", "-organisation__INN",
-        "organisation__name", "-organisation__name",
-        "is_complete", "-is_complete"
-    }
     if sort_param not in allowed_sort_fields:
         sort_param = "-created"
 
     qs = qs.order_by(sort_param)
 
-    headers = {
-        "user": "Пользователь",
-        "created": "Дата создания",
-        "organisation__INN": "ИНН",
-        "organisation__name": "Наименование",
-        "is_complete": "Статус",
-    }
-
     return render(request, "calculations/history.html", {
         "calculations": qs,
         "headers": headers,
         "current_sort": sort_param,
+        "calc_type": calc_type,
     })
 
 
@@ -547,3 +571,143 @@ def create_related_calculation(request, pk):
 @login_required(login_url="/users/login/")
 def not_finished(request):
     return render(request, 'calculations/not_finished.html')
+
+
+@login_required(login_url="/users/login/")
+def newcalc_risk_view(request):
+    industries = Industry.objects.all()
+    context = { "industries": industries }
+
+    if request.method == "GET":
+        return render(request, "calculations/risk_calc.html", context)
+
+    year_raw = request.POST.get("year")
+    industry_id = request.POST.get("industry")
+
+    if not year_raw or not industry_id:
+        context["error"] = "Год и отрасль обязательны"
+        return render(request, "calculations/risk_calc.html", context)
+
+    try:
+        year = int(year_raw)
+    except ValueError:
+        context["error"] = "Год должен быть числом"
+        return render(request, "calculations/risk_calc.html", context)
+
+    industry = get_object_or_404(Industry, id=industry_id)
+
+    years = list(range(year - 4, year + 1))
+    years.reverse()
+
+    context.update({
+        "year": year,
+        "industry_selected": industry.id,
+        "years": years,
+        "years_with_data": [(y, "") for y in years],
+    })
+
+    if request.POST.get("action") == "search":
+        deaths_data = {}
+        workers_value = ""
+
+        for y in years:
+            stat = DeathStatistic.objects.filter(industry=industry, year=y).first()
+            deaths_data[y] = stat.deaths if stat else ""
+
+            if y == year and stat:
+                workers_value = stat.workers_in_industry
+
+        context.update({
+            "years_with_data": [(y, deaths_data.get(y, "")) for y in years],
+            "workers_value": workers_value,
+        })
+
+        return render(request, "calculations/risk_calc.html", context)
+
+    deaths_input = {}
+    for idx, y in enumerate(years, start=1):
+        raw = request.POST.get(f"deaths_{idx}")
+        if raw is None:
+            context["error"] = "Не все поля количества погибших заполнены"
+            return render(request, "calculations/risk_calc.html", context)
+
+        try:
+            value = int(raw)
+            if value < 0:
+                raise ValueError
+        except ValueError:
+            context["error"] = "Количество погибших должно быть целым неотрицательным числом"
+            return render(request, "calculations/risk_calc.html", context)
+
+        deaths_input[y] = value
+
+    workers_raw = request.POST.get("workers_in_industry")
+    if not workers_raw:
+        context["error"] = "Численность работников обязательна"
+        return render(request, "calculations/risk_calc.html", context)
+
+    try:
+        workers_input = int(workers_raw)
+        if workers_input <= 0:
+            raise ValueError
+    except ValueError:
+        context["error"] = "Численность работников должна быть положительным целым числом"
+        return render(request, "calculations/risk_calc.html", context)
+
+    short_shift = bool(request.POST.get("short_shift"))
+    confirm = request.POST.get("confirm_finish") == "1"
+
+    if request.POST.get("save") == "save":
+        overwrite_required = False
+
+        for y, value in deaths_input.items():
+            stat = DeathStatistic.objects.filter(industry=industry, year=y).first()
+
+            if stat and stat.deaths != value:
+                overwrite_required = True
+
+        workers_stat = DeathStatistic.objects.filter(industry=industry, year=year).first()
+
+        if workers_stat and workers_stat.workers_in_industry != workers_input:
+            overwrite_required = True
+
+        if overwrite_required and not confirm:
+            context.update({
+                "years_with_data": list(deaths_input.items()),
+                "workers_value": workers_input,
+                "short_shift": short_shift,
+                "need_confirm": True,
+            })
+            return render(request, "calculations/risk_calc.html", context)
+
+    for y, value in deaths_input.items():
+        stat, created = DeathStatistic.objects.get_or_create(industry=industry, year=y, defaults={"deaths": value, "workers_in_industry": workers_input if y == year else 0})
+
+        if not created:
+            stat.deaths = value
+            if y == year:
+                stat.workers_in_industry = workers_input
+            stat.save()
+
+    total_deaths = sum(deaths_input.values())
+    base_risk = total_deaths / (workers_input * 5)
+    coefficient = 0.08 if short_shift else 0.22
+    result = base_risk * coefficient
+
+    calculation = RiskCalculation.objects.create(user=request.user, industry=industry, year=year, is_short_shift=short_shift, result=result)
+    return redirect("calculations:risk_calc_result", calculation.id)
+
+
+@login_required
+def risk_calc_result(request, pk):
+    calculation = get_object_or_404(RiskCalculation, pk=pk)
+
+    can_delete = (request.user == calculation.user or request.user.groups.filter(name="boss").exists())
+
+    if request.method == "POST":
+        if not can_delete:
+            raise PermissionDenied
+        calculation.delete()
+        return redirect("calculations:history")
+
+    return render(request, "calculations/risk_calc_result.html", { "calculation": calculation, "can_delete": can_delete, })

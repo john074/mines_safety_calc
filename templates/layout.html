@@ -19,7 +19,8 @@
                 {% if user.is_authenticated %}
                     <ul>
                         <li><a href="{% url 'calculations:history' %}">Журнал расчетов</a></li>
-                        <li><a href="{% url 'calculations:newcalc' %}">Новый расчет</a></li>
+                        <li><a href="{% url 'calculations:newcalc' %}">Расчет риска на предприятии</a></li>
+                        <li><a href="{% url 'calculations:newcalc_risk' %}">Расчет индивидуального риска</a></li>
                         <li><form class="logout" action="{% url 'users:logout' %}" method="post">
                             {% csrf_token %}
                             <button class="">Выход</button>

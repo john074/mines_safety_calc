@@ -1,29 +1,46 @@
 {% extends 'layout.html' %}
 
 {% block title %}
-    Журнал расчетов
+    Журнал расчётов
 {% endblock %}
 
 {% block content %}
 <h1 class="header">Журнал расчётов</h1>
 
+<div class="search-form">
+    <a href="?calc_type=main"
+       class="btn-secondary {% if calc_type == 'main' %}btn-primary{% endif %}">
+        Риски предприятий
+    </a>
+    <a href="?calc_type=risk"
+       class="btn-secondary {% if calc_type == 'risk' %}btn-primary{% endif %}">
+        Индивидуальные риски
+    </a>
+</div>
+
 <form method="get" class="search-form">
-  <select name="filter_by">
-    <option value="organisation__INN" {% if request.GET.filter_by == "organisation__INN" %}selected{% endif %}>ИНН</option>
-    <option value="organisation__name" {% if request.GET.filter_by == "organisation__name" %}selected{% endif %}>Наименование</option>
-    <option value="user" {% if request.GET.filter_by == "user" %}selected{% endif %}>Пользователь</option>
-  </select>
+    <input type="hidden" name="calc_type" value="{{ calc_type }}">
 
-  <input type="text" name="query" placeholder="Поиск..." value="{{ request.GET.query }}">
+    <select name="filter_by">
+        {% if calc_type == "risk" %}
+            <option value="industry__name">Отрасль</option>
+        {% else %}
+            <option value="organisation__INN">ИНН</option>
+            <option value="organisation__name">Наименование</option>
+        {% endif %}
+        <option value="user">Пользователь</option>
+    </select>
 
-  <label>Создан с:
-    <input type="date" name="created_from" value="{{ request.GET.created_from }}">
-  </label>
-  <label>по:
-    <input type="date" name="created_to" value="{{ request.GET.created_to }}">
-  </label>
+    <input type="text" name="query" placeholder="Поиск..." value="{{ request.GET.query }}">
 
-  <button type="submit">Поиск</button>
+    <label>Создан с:
+        <input type="date" name="created_from" value="{{ request.GET.created_from }}">
+    </label>
+    <label>по:
+        <input type="date" name="created_to" value="{{ request.GET.created_to }}">
+    </label>
+
+    <button type="submit">Поиск</button>
 </form>
 
 <div class="calc-log">
@@ -32,13 +49,8 @@
       <tr>
         {% for field, label in headers.items %}
         <th>
-            <a href="?sort={% if current_sort == field %}-{{ field }}{% else %}{{ field }}{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            <a href="?calc_type={{ calc_type }}&sort={% if current_sort == field %}-{{ field }}{% else %}{{ field }}{% endif %}">
                 {{ label }}
-                {% if current_sort == field %}
-                    ▲
-                {% elif current_sort == '-'|add:field %}
-                    ▼
-                {% endif %}
             </a>
         </th>
         {% endfor %}
@@ -46,27 +58,39 @@
     </thead>
     <tbody>
         {% for entry in calculations %}
-            <tr class="clickable-row" data-href="{% url 'calculations:calc_details' entry.id %}">
+            <tr class="clickable-row"
+                {% if calc_type == "risk" %}
+                    data-href="{% url 'calculations:risk_calc_result' entry.id %}"
+                {% else %}
+                    data-href="{% url 'calculations:calc_details' entry.id %}"
+                {% endif %}>
                 <td>
-                    {% if entry.user.first_name or entry.user.last_name %}
-                    {{ entry.user.first_name }} {{ entry.user.last_name }}
-                    {% else %}
-                    {{ entry.user.username }}
-                    {% endif %}
+                    {{ entry.user.get_full_name|default:entry.user.username }}
                 </td>
                 <td>{{ entry.created|date:"d.m.Y H:i" }}</td>
-                <td>{{ entry.organisation.INN }}</td>
-                <td>{{ entry.organisation.name }}</td>
-                <td>
-                    {% if entry.is_complete %}
-                    <span class="status complete">Завершён</span>
-                    {% else %}
-                    <span class="status in-progress">Не завершён</span>
-                    {% endif %}
-                </td>
+
+                {% if calc_type == "risk" %}
+                    <td>{{ entry.industry.name }}</td>
+                    <td>{{ entry.year }}</td>
+                    <td>{{ entry.result }}</td>
+                {% else %}
+                    <td>{{ entry.organisation.INN }}</td>
+                    <td>{{ entry.organisation.name }}</td>
+                    <td>
+                        {% if entry.is_complete %}
+                            <span class="status complete">Завершён</span>
+                        {% else %}
+                            <span class="status in-progress">Не завершён</span>
+                        {% endif %}
+                    </td>
+                {% endif %}
             </tr>
         {% empty %}
-            <tr><td colspan="5" style="text-align:center;">Нет доступных расчётов</td></tr>
+            <tr>
+                <td colspan="6" style="text-align:center;">
+                    Нет доступных расчётов
+                </td>
+            </tr>
         {% endfor %}
     </tbody>
   </table>
